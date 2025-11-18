@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:thisjowi/core/env_loader.dart';
+import 'package:thisjowi/utils/env_loader.dart';
 
 /// Configuración centralizada de API para el proyecto ThisJowi
 /// Lee todas las variables desde .env
