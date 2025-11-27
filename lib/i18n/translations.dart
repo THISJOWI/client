@@ -508,6 +508,12 @@ extension Localization on String {
       {
         "en": "Hide Password",
         "es": "Ocultar contraseña",
+      } +
+
+      // ==================== HOME ====================
+      {
+        "en": "No data yet",
+        "es": "Aún no hay datos",
       };
 
   String get i18n => localize(this, _t);
