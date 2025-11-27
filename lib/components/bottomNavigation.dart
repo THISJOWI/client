@@ -1,14 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:thisjowi/core/appColors.dart';
-<<<<<<< HEAD
-import 'package:thisjowi/screens/notes/NotesScreen.dart';
-import 'package:thisjowi/screens/otp/TOPT.dart';
-import 'package:thisjowi/screens/password/PasswordScreen.dart';
-=======
 import 'package:thisjowi/screens/otp/TOPT.dart';
 import 'package:thisjowi/screens/home/HomeScreen.dart';
->>>>>>> develop
 import 'package:thisjowi/screens/settings/SettingScreen.dart';
 
 class MyBottomNavigation extends StatefulWidget {

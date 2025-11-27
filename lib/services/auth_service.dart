@@ -3,7 +3,8 @@ import 'dart:async';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../core/api_config.dart';
+import 'package:thisjowi/utils/api_config.dart';
+
 
 /// Simple service to connect with the authentication API.
 ///

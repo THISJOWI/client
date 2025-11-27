@@ -2,10 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:http/http.dart' as http;
+import 'package:thisjowi/utils/api_config.dart';
 import 'database_service.dart';
 import 'connectivity_service.dart';
 import 'package:thisjowi/services/auth_service.dart';
-import 'package:thisjowi/core/api_config.dart';
+
 
 /// Service to synchronize local data with backend
 /// 
