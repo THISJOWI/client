@@ -202,8 +202,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       children: [
                         Text(
                           _currentPage < _pages.length - 1
-                              ? 'Siguiente'
-                              : 'Comenzar',
+                              ? 'Next'
+                              : 'Get Started',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

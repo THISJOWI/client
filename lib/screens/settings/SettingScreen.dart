@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:thisjowi/core/appColors.dart';
 import 'package:thisjowi/services/auth_service.dart';
+import 'package:thisjowi/backend/repository/auth_repository.dart';
+import 'package:thisjowi/backend/service/database_service.dart';
+import 'package:thisjowi/backend/service/connectivity_service.dart';
+import 'package:thisjowi/backend/service/secure_storage_service.dart';
 import 'package:thisjowi/components/error_snack_bar.dart';
+import 'package:thisjowi/i18n/translations.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({super.key});
@@ -16,6 +21,23 @@ class _SettingScreenState extends State<SettingScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
+  
+  AuthRepository? _authRepository;
+
+  @override
+  void initState() {
+    super.initState();
+    _initRepository();
+  }
+  
+  void _initRepository() {
+    _authRepository = AuthRepository(
+      authService: _authService,
+      databaseService: DatabaseService(),
+      connectivityService: ConnectivityService(),
+      secureStorageService: SecureStorageService(),
+    );
+  }
 
   Widget _buildSettingItem({
     required IconData icon,
@@ -139,7 +161,7 @@ class _SettingScreenState extends State<SettingScreen> {
                             ),
                           ),
                           child: Text(
-                            'Cancelar',
+                            'Cancel'.i18n,
                             style: TextStyle(
                               color: AppColors.text.withOpacity(0.6),
                               fontSize: 14,
@@ -186,18 +208,18 @@ class _SettingScreenState extends State<SettingScreen> {
 
   void _handleDeleteAccount() async {
     _showConfirmationDialog(
-      title: 'Delete Account',
-      content: 'Are you sure you want to delete your account? This action cannot be undone.',
+      title: 'Delete Account'.i18n,
+      content: 'Are you sure you want to delete your account? This action cannot be undone.'.i18n,
       onConfirm: () async {
         try {
           // TODO: Implement account deletion in AuthService
           await _authService.deleteAccount();
           if (!mounted) return;
           Navigator.pushReplacementNamed(context, '/login');
-          ErrorSnackBar.showSuccess(context, 'Cuenta eliminada exitosamente');
+          ErrorSnackBar.showSuccess(context, 'Account deleted successfully'.i18n);
         } catch (e) {
           if (!mounted) return;
-          ErrorSnackBar.show(context, 'Error al eliminar cuenta: $e');
+          ErrorSnackBar.show(context, '${'Error deleting account'.i18n}: $e');
         }
       },
     );
@@ -205,8 +227,8 @@ class _SettingScreenState extends State<SettingScreen> {
 
   void _handleLogout() {
     _showConfirmationDialog(
-      title: 'Logout',
-      content: 'Are you sure you want to logout?',
+      title: 'Logout'.i18n,
+      content: 'Are you sure you want to logout?'.i18n,
       onConfirm: () {
         Navigator.pushReplacementNamed(context, '/login');
       },
@@ -231,9 +253,9 @@ class _SettingScreenState extends State<SettingScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Change Password',
-                          style: TextStyle(
+                        Text(
+                          'Change Password'.i18n,
+                          style: const TextStyle(
                             color: AppColors.text,
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
@@ -252,7 +274,7 @@ class _SettingScreenState extends State<SettingScreen> {
                     const SizedBox(height: 24),
                     _buildPasswordField(
                       controller: _newPasswordController,
-                      label: 'New Password',
+                      label: 'New Password'.i18n,
                       obscure: _obscureNewPassword,
                       onVisibilityToggle: () =>
                           setState(() => _obscureNewPassword = !_obscureNewPassword),
@@ -260,7 +282,7 @@ class _SettingScreenState extends State<SettingScreen> {
                     const SizedBox(height: 16),
                     _buildPasswordField(
                       controller: _confirmPasswordController,
-                      label: 'Confirm Password',
+                      label: 'Confirm Password'.i18n,
                       obscure: _obscureConfirmPassword,
                       onVisibilityToggle: () =>
                           setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
@@ -282,7 +304,7 @@ class _SettingScreenState extends State<SettingScreen> {
                               ),
                             ),
                             child: Text(
-                              'Cancel',
+                              'Cancel'.i18n,
                               style: TextStyle(
                                 color: AppColors.text.withOpacity(0.6),
                                 fontSize: 14,
@@ -304,9 +326,9 @@ class _SettingScreenState extends State<SettingScreen> {
                               ),
                               elevation: 0,
                             ),
-                            child: const Text(
-                              'Change',
-                              style: TextStyle(
+                            child: Text(
+                              'Change'.i18n,
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -361,7 +383,7 @@ class _SettingScreenState extends State<SettingScreen> {
                 size: 24,
               ),
               onPressed: onVisibilityToggle,
-              tooltip: obscure ? 'Show Password' : 'Hide Password',
+              tooltip: obscure ? 'Show Password'.i18n : 'Hide Password'.i18n,
             ),
           ),
           border: InputBorder.none,
@@ -377,23 +399,33 @@ class _SettingScreenState extends State<SettingScreen> {
 
     // New password and confirmation are required
     if (newPassword.isEmpty || confirmPassword.isEmpty) {
-      ErrorSnackBar.show(context, 'Please complete the new password');
+      ErrorSnackBar.show(context, 'Please complete the new password'.i18n);
       return;
     }
 
     if (newPassword != confirmPassword) {
-      ErrorSnackBar.show(context, 'The new passwords do not match');
+      ErrorSnackBar.show(context, 'The new passwords do not match'.i18n);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      ErrorSnackBar.show(context, 'Password must be at least 6 characters'.i18n);
       return;
     }
 
     try {
-      // Send empty string for currentPassword since it's optional on backend
-      final result = await _authService.changePassword('', newPassword, confirmPassword);
+      // Ensure repository is initialized
+      if (_authRepository == null) {
+        _initRepository();
+      }
+      
+      // Use AuthRepository for offline-first password change (no current password needed)
+      final result = await _authRepository!.changePasswordDirect(newPassword);
       if (!mounted) return;
       
       // Check if password change was successful
       if (result['success'] != true) {
-        ErrorSnackBar.show(context, result['message'] ?? 'Failed to change password');
+        ErrorSnackBar.show(context, result['message'] ?? 'Failed to change password'.i18n);
         return;
       }
       
@@ -402,10 +434,10 @@ class _SettingScreenState extends State<SettingScreen> {
       _confirmPasswordController.clear();
       Navigator.pop(context);
 
-      ErrorSnackBar.showSuccess(context, 'Password changed successfully');
+      ErrorSnackBar.showSuccess(context, 'Password changed successfully'.i18n);
     } catch (e) {
       if (!mounted) return;
-      ErrorSnackBar.show(context, 'Error changing password: $e');
+      ErrorSnackBar.show(context, '${'Error changing password'.i18n}: $e');
     }
   }
 
@@ -423,9 +455,9 @@ class _SettingScreenState extends State<SettingScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        title: const Text(
-          'Settings',
-          style: TextStyle(
+        title: Text(
+          'Settings'.i18n,
+          style: const TextStyle(
             color: AppColors.text,
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -442,7 +474,7 @@ class _SettingScreenState extends State<SettingScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 20.0, top: 24.0, bottom: 12.0),
             child: Text(
-              'Security',
+              'Security'.i18n,
               style: TextStyle(
                 color: AppColors.text.withOpacity(0.6),
                 fontSize: 13,
@@ -452,8 +484,8 @@ class _SettingScreenState extends State<SettingScreen> {
           ),
           _buildSettingItem(
             icon: Icons.password,
-            title: 'Change Password',
-            subtitle: 'Update your password',
+            title: 'Change Password'.i18n,
+            subtitle: 'Update your password'.i18n,
             onTap: _showChangePasswordDialog,
           ),
 
@@ -461,7 +493,7 @@ class _SettingScreenState extends State<SettingScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 20.0, top: 24.0, bottom: 12.0),
             child: Text(
-              'Information',
+              'Information'.i18n,
               style: TextStyle(
                 color: AppColors.text.withOpacity(0.6),
                 fontSize: 13,
@@ -471,12 +503,12 @@ class _SettingScreenState extends State<SettingScreen> {
           ),
           _buildSettingItem(
             icon: Icons.info_outline,
-            title: 'Application Version',
-            subtitle: '1.0.1',
+            title: 'Application Version'.i18n,
+            subtitle: '1.0.2',
           ),
           _buildSettingItem(
             icon: Icons.help_outline,
-            title: 'Account & Privacy',
+            title: 'Account & Privacy'.i18n,
             onTap: () {
               // TODO: Implement help
             },
@@ -486,7 +518,7 @@ class _SettingScreenState extends State<SettingScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 30.0, top: 24.0, bottom: 12.0),
             child: Text(
-              'Account',
+              'Account'.i18n,
               style: TextStyle(
                 color: AppColors.text.withOpacity(0.6),
                 fontSize: 13,
@@ -496,14 +528,14 @@ class _SettingScreenState extends State<SettingScreen> {
           ),
           _buildSettingItem(
             icon: Icons.logout,
-            title: 'Logout',
+            title: 'Logout'.i18n,
             iconColor: Colors.orange,
             onTap: _handleLogout,
           ),
           _buildSettingItem(
             icon: Icons.delete_forever,
-            title: 'Delete Account',
-            subtitle: 'This action cannot be undone',
+            title: 'Delete Account'.i18n,
+            subtitle: 'This action cannot be undone'.i18n,
             iconColor: Colors.red,
             onTap: _handleDeleteAccount,
           ),

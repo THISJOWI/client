@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:thisjowi/core/appColors.dart';
+import 'package:thisjowi/backend/repository/auth_repository.dart';
 import 'package:thisjowi/services/auth_service.dart';
+import 'package:thisjowi/backend/service/database_service.dart';
+import 'package:thisjowi/backend/service/connectivity_service.dart';
+import 'package:thisjowi/backend/service/secure_storage_service.dart';
 import 'package:thisjowi/components/error_snack_bar.dart';
+import 'package:thisjowi/i18n/translations.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,13 +18,30 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
+  final FocusNode _passwordFocusNode = FocusNode();
+  AuthRepository? _authRepository;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAuthRepository();
+  }
+
+  void _initAuthRepository() {
+    _authRepository = AuthRepository(
+      authService: AuthService(),
+      databaseService: DatabaseService(),
+      connectivityService: ConnectivityService(),
+      secureStorageService: SecureStorageService(),
+    );
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -28,20 +50,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      ErrorSnackBar.show(context, 'Please complete all fields');
+      ErrorSnackBar.show(context, 'Please complete all fields'.i18n);
       return;
     }
 
+    if (_authRepository == null) {
+      _initAuthRepository();
+    }
+
     setState(() => _isLoading = true);
-    final result = await _authService.register(email, email.split('@')[0], password);
+    
+    // Registration is now instant (offline-first with background sync)
+    final result = await _authRepository!.register(email, email.split('@')[0], password);
+    
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      if (!mounted) return;
-      ErrorSnackBar.showSuccess(context, 'Registration successful. Sign in.');
+      // Show success and navigate immediately
+      // Background sync will happen automatically
+      ErrorSnackBar.showSuccess(
+        context, 
+        'Account created! Syncing in background...'.i18n
+      );
+      
+      // Navigate to home or main screen instead of login
+      // User can start using the app immediately
       Navigator.pushReplacementNamed(context, '/login');
     } else {
-      ErrorSnackBar.show(context, result['message'] ?? 'Register failed');
+      ErrorSnackBar.show(context, result['message'] ?? 'Register failed'.i18n);
     }
   }
 
@@ -62,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   children: [
                     Text(
-                      "Create Account",
+                      "Create Account".i18n,
                       style: TextStyle(
                         fontSize: 28,
                         color: AppColors.text,
@@ -71,7 +108,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Sign up to get started",
+                      "Sign up to get started".i18n,
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.text.withOpacity(0.6),
@@ -96,13 +133,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: TextFormField(
                     controller: _emailController,
                     style: const TextStyle(color: AppColors.text, fontSize: 16),
+                    textInputAction: TextInputAction.next,
+                    onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
                     decoration: InputDecoration(
                       prefixIcon: Icon(
                         Icons.email,
                         color: AppColors.text.withOpacity(0.6),
                         size: 20,
                       ),
-                      labelText: "Email",
+                      labelText: "Email".i18n,
                       labelStyle: TextStyle(
                         color: AppColors.text.withOpacity(0.6),
                         fontSize: 14,
@@ -135,13 +174,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _passwordController,
                       style: const TextStyle(color: AppColors.text, fontSize: 16),
                       obscureText: true,
+                      focusNode: _passwordFocusNode,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _isLoading ? null : _handleRegister(),
                       decoration: InputDecoration(
                         prefixIcon: Icon(
                           Icons.lock,
                           color: AppColors.text.withOpacity(0.6),
                           size: 20,
                         ),
-                        labelText: "Password",
+                        labelText: "Password".i18n,
                         labelStyle: TextStyle(
                           color: AppColors.text.withOpacity(0.6),
                           fontSize: 14,
@@ -180,9 +222,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          "Crear cuenta",
-                          style: TextStyle(
+                      : Text(
+                          "Create account".i18n,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -197,7 +239,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      "¿Ya tienes cuenta? ",
+                      "Already have an account? ".i18n,
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.text.withOpacity(0.7),
@@ -208,7 +250,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Navigator.pushNamed(context, "/login");
                       },
                       child: Text(
-                        "Sign In",
+                        "Sign In".i18n,
                         style: TextStyle(
                           fontSize: 14,
                           color: AppColors.text,

@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/appColors.dart';
 import '../../models/password_entry.dart';
-import '../../services/password_service.dart';
+import '../../backend/repository/passwords_repository.dart';
+import '../../i18n/translations.dart';
 
 class EditPasswordScreen extends StatefulWidget {
-  final PasswordService passwordService;
+  final PasswordsRepository passwordsRepository;
   final PasswordEntry? passwordEntry;
 
   const EditPasswordScreen({
     super.key,
-    required this.passwordService,
+    required this.passwordsRepository,
     this.passwordEntry,
   });
 
@@ -24,6 +25,9 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
   late TextEditingController _usernameController;
   late TextEditingController _passwordController;
   late TextEditingController _websiteController;
+  final FocusNode _usernameFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+  final FocusNode _websiteFocusNode = FocusNode();
   bool _isSaving = false;
   bool _showPassword = false;
 
@@ -43,6 +47,9 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
     _usernameController.dispose();
     _passwordController.dispose();
     _websiteController.dispose();
+    _usernameFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _websiteFocusNode.dispose();
     super.dispose();
   }
 
@@ -55,7 +62,7 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
     // Validate title
     if (titleText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a title')),
+        SnackBar(content: Text('Please enter a title'.i18n)),
       );
       return;
     }
@@ -63,7 +70,7 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
     // Validate password
     if (passwordText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a password')),
+        SnackBar(content: Text('Please enter a password'.i18n)),
       );
       return;
     }
@@ -71,7 +78,7 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
     // Validate username
     if (usernameText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a username')),
+        SnackBar(content: Text('Please enter a username'.i18n)),
       );
       return;
     }
@@ -81,14 +88,14 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
         !websiteText.startsWith('http://') && 
         !websiteText.startsWith('https://')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Website must start with http:// or https://')),
+        SnackBar(content: Text('Website must start with http:// or https://'.i18n)),
       );
       return;
     }
     
     setState(() => _isSaving = true);
     final data = {
-      'title': titleText,              // ← Changed from 'name' to 'title'
+      'title': titleText,
       'username': usernameText,
       'password': passwordText,
       'website': websiteText,
@@ -96,8 +103,8 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
     final isEdit = widget.passwordEntry != null;
     final id = widget.passwordEntry?.id;
     final result = isEdit
-        ? await widget.passwordService.updatePassword(id!, data)
-        : await widget.passwordService.addPassword(data);
+        ? await widget.passwordsRepository.updatePassword(id!, data)
+        : await widget.passwordsRepository.addPassword(data);
     setState(() => _isSaving = false);
     if (result['success'] == true) {
       if (!mounted) return;
@@ -105,7 +112,7 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
     } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Error saving password')),
+        SnackBar(content: Text(result['message'] ?? 'Error saving password'.i18n)),
       );
     }
   }
@@ -115,7 +122,7 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.passwordEntry == null ? 'Add Password' : 'Edit Password',
+          widget.passwordEntry == null ? 'Add Password'.i18n : 'Edit Password'.i18n,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         backgroundColor: AppColors.background,
@@ -134,22 +141,27 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
                 const SizedBox(height: 16),
                 _buildTextField(
                   controller: _titleController,
-                  label: 'Title',
+                  label: 'Title'.i18n,
                   icon: Icons.title,
+                  nextFocusNode: _usernameFocusNode,
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
                   controller: _usernameController,
-                  label: 'Username',
+                  label: 'Username'.i18n,
                   icon: Icons.person,
+                  focusNode: _usernameFocusNode,
+                  nextFocusNode: _passwordFocusNode,
                 ),
                 const SizedBox(height: 16),
                 _buildPasswordField(),
                 const SizedBox(height: 16),
                 _buildTextField(
                   controller: _websiteController,
-                  label: 'Website',
+                  label: 'Website'.i18n,
                   icon: Icons.link,
+                  focusNode: _websiteFocusNode,
+                  isLast: true,
                 ),
                 const SizedBox(height: 40),
                 _buildSaveButton(),
@@ -166,6 +178,9 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
     required String label,
     required IconData icon,
     String? Function(String?)? validator,
+    FocusNode? focusNode,
+    FocusNode? nextFocusNode,
+    bool isLast = false,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -175,7 +190,16 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
       ),
       child: TextFormField(
         controller: controller,
+        focusNode: focusNode,
         style: const TextStyle(color: AppColors.text, fontSize: 16),
+        textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
+        onFieldSubmitted: (_) {
+          if (isLast) {
+            if (!_isSaving) _save();
+          } else {
+            nextFocusNode?.requestFocus();
+          }
+        },
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6), fontSize: 14),
@@ -197,10 +221,13 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
       ),
       child: TextFormField(
         controller: _passwordController,
+        focusNode: _passwordFocusNode,
         style: const TextStyle(color: AppColors.text, fontSize: 16),
         obscureText: !_showPassword,
+        textInputAction: TextInputAction.next,
+        onFieldSubmitted: (_) => _websiteFocusNode.requestFocus(),
         decoration: InputDecoration(
-          labelText: 'Password',
+          labelText: 'Password'.i18n,
           labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6), fontSize: 14),
           prefixIcon: Icon(Icons.lock, color: AppColors.text.withOpacity(0.6), size: 20),
           suffixIcon: Row(
@@ -223,7 +250,7 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: _passwordController.text));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Password copied')),
+                    SnackBar(content: Text('Password copied'.i18n)),
                   );
                 },
                 constraints: const BoxConstraints(),
@@ -261,7 +288,7 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
                 ),
               )
             : Text(
-                widget.passwordEntry == null ? 'Create Password' : 'Save Changes',
+                widget.passwordEntry == null ? 'Create Password'.i18n : 'Save Changes'.i18n,
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
       ),

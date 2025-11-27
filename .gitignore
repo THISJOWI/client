@@ -44,3 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 .env
+
+# Local SQLite database is stored in Application Support directory
+# No need to ignore here as it's outside the project folder

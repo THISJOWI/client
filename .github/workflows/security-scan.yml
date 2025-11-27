@@ -25,7 +25,6 @@ jobs:
       - name: 🔧 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'latest'
           channel: 'stable'
           cache: true
 
@@ -65,7 +64,6 @@ jobs:
       - name: 🔧 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'latest'
           channel: 'stable'
           cache: true
 
@@ -142,7 +140,6 @@ jobs:
       - name: 🔧 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'latest'
           channel: 'stable'
 
       - name: 📦 Install dependencies

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
-import '../core/api_config.dart';
+import 'package:thisjowi/utils/api_config.dart';
 import 'auth_service.dart';
 
 /// Service to connect with the passwords API.

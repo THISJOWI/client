@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../core/appColors.dart';
 import '../../models/note.dart';
-import '../../services/notes_service.dart';
+import '../../backend/repository/notes_repository.dart';
 import '../../components/error_snack_bar.dart';
+import '../../i18n/translations.dart';
 
 class EditNoteScreen extends StatefulWidget {
-  final NotesService notesService;
+  final NotesRepository notesRepository;
   final Note? note;
 
   const EditNoteScreen({
     super.key,
-    required this.notesService,
+    required this.notesRepository,
     this.note,
   });
 
@@ -22,6 +23,7 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  final _contentFocusNode = FocusNode();
   bool _isLoading = false;
   String? _titleError;
 
@@ -38,6 +40,7 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _contentFocusNode.dispose();
     super.dispose();
   }
 
@@ -57,9 +60,12 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
 
       late Map<String, dynamic> result;
       if (widget.note == null) {
-        result = await widget.notesService.createNote(note);
+        // Crear nueva nota
+        result = await widget.notesRepository.createNote(note);
       } else {
-        result = await widget.notesService.updateNote(widget.note!.title, note);
+        // Actualizar nota existente
+        final noteId = widget.note!.localId ?? widget.note!.id?.toString() ?? '';
+        result = await widget.notesRepository.updateNote(noteId, note);
       }
 
       if (!mounted) return;
@@ -70,7 +76,7 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
         final message = result['message'] ?? 'Unknown error';
         if (message.contains('title already exists')) {
           setState(() {
-            _titleError = 'A note with this title already exists';
+            _titleError = 'A note with this title already exists'.i18n;
           });
         } else {
           ErrorSnackBar.show(context, message);
@@ -92,7 +98,7 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         title: Text(
-          widget.note == null ? 'New Note' : 'Edit Note',
+          widget.note == null ? 'New Note'.i18n : 'Edit Note'.i18n,
           style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
@@ -110,7 +116,7 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
                 elevation: 0,
               ),
               child: Text(
-                widget.note == null ? 'Create' : 'Save',
+                widget.note == null ? 'Create'.i18n : 'Save'.i18n,
                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
             ),
@@ -132,8 +138,10 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
                 child: TextFormField(
                   controller: _titleController,
                   style: const TextStyle(color: AppColors.text, fontSize: 16),
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _contentFocusNode.requestFocus(),
                   decoration: InputDecoration(
-                    labelText: 'Title',
+                    labelText: 'Title'.i18n,
                     labelStyle: TextStyle(
                       color: _titleError != null ? Colors.red : AppColors.text.withOpacity(0.6),
                       fontSize: 14,
@@ -146,7 +154,7 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a title';
+                      return 'Please enter a title'.i18n;
                     }
                     return null;
                   },
@@ -169,9 +177,10 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
                   ),
                   child: TextFormField(
                     controller: _contentController,
+                    focusNode: _contentFocusNode,
                     style: const TextStyle(color: AppColors.text, fontSize: 16),
                     decoration: InputDecoration(
-                      labelText: 'Content',
+                      labelText: 'Content'.i18n,
                       alignLabelWithHint: true,
                       labelStyle: TextStyle(
                         color: AppColors.text.withOpacity(0.6),
@@ -185,7 +194,7 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
                     textAlignVertical: TextAlignVertical.top,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Please enter the content';
+                        return 'Please enter the content'.i18n;
                       }
                       return null;
                     },

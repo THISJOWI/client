@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:thisjowi/core/appColors.dart';
+import 'package:thisjowi/backend/repository/auth_repository.dart';
 import 'package:thisjowi/services/auth_service.dart';
+import 'package:thisjowi/backend/service/database_service.dart';
+import 'package:thisjowi/backend/service/connectivity_service.dart';
+import 'package:thisjowi/backend/service/secure_storage_service.dart';
 import 'package:thisjowi/components/bottomNavigation.dart';
 import 'package:thisjowi/components/error_snack_bar.dart';
+import 'package:thisjowi/i18n/translations.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,13 +19,30 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
+  final FocusNode _passwordFocusNode = FocusNode();
+  AuthRepository? _authRepository;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAuthRepository();
+  }
+
+  void _initAuthRepository() {
+    _authRepository = AuthRepository(
+      authService: AuthService(),
+      databaseService: DatabaseService(),
+      connectivityService: ConnectivityService(),
+      secureStorageService: SecureStorageService(),
+    );
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -29,15 +51,24 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      ErrorSnackBar.show(context, 'Please complete email and password');
+      ErrorSnackBar.show(context, 'Please complete email and password'.i18n);
       return;
     }
 
+    if (_authRepository == null) {
+      _initAuthRepository();
+    }
+
     setState(() => _isLoading = true);
-    final result = await _authService.login(email, password);
+    final result = await _authRepository!.login(email, password);
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
+      // Show message if offline login
+      if (result['offline'] == true && mounted) {
+        ErrorSnackBar.showSuccess(context, 'Logged in offline mode'.i18n);
+      }
+      
       // Navigate to main screen replacing the stack
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -45,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (_) => const MyBottomNavigation()),
       );
     } else {
-      ErrorSnackBar.show(context, result['message'] ?? 'Login failed');
+      ErrorSnackBar.show(context, result['message'] ?? 'Login failed'.i18n);
     }
   }
 
@@ -66,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   children: [
                     Text(
-                      "Welcome",
+                      "Welcome".i18n,
                       style: TextStyle(
                         fontSize: 28,
                         color: AppColors.text,
@@ -75,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Sign in to your account",
+                      "Sign in to your account".i18n,
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.text.withOpacity(0.6),
@@ -100,13 +131,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: TextFormField(
                     controller: _emailController,
                     style: const TextStyle(color: AppColors.text, fontSize: 16),
+                    textInputAction: TextInputAction.next,
+                    onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
                     decoration: InputDecoration(
                       prefixIcon: Icon(
                         Icons.email,
                         color: AppColors.text.withOpacity(0.6),
                         size: 20,
                       ),
-                      labelText: "Email",
+                      labelText: "Email".i18n,
                       labelStyle: TextStyle(
                         color: AppColors.text.withOpacity(0.6),
                         fontSize: 14,
@@ -139,13 +172,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _passwordController,
                       style: const TextStyle(color: AppColors.text, fontSize: 16),
                       obscureText: true,
+                      focusNode: _passwordFocusNode,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _isLoading ? null : _handleLogin(),
                       decoration: InputDecoration(
                         prefixIcon: Icon(
                           Icons.lock,
                           color: AppColors.text.withOpacity(0.6),
                           size: 20,
                         ),
-                        labelText: "Password",
+                        labelText: "Password".i18n,
                         labelStyle: TextStyle(
                           color: AppColors.text.withOpacity(0.6),
                           fontSize: 14,
@@ -184,9 +220,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          "Sign In",
-                          style: TextStyle(
+                      : Text(
+                          "Sign In".i18n,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -201,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      "¿No tienes cuenta? ",
+                      "Don't have an account? ".i18n,
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.text.withOpacity(0.7),
@@ -212,7 +248,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.pushNamed(context, "/register");
                       },
                       child: Text(
-                        "Sign Up",
+                        "Sign Up".i18n,
                         style: TextStyle(
                           fontSize: 14,
                           color: AppColors.text,
