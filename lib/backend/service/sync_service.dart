@@ -2,11 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:http/http.dart' as http;
-<<<<<<< HEAD
-import 'package:thisjowi/utils/api_config.dart';
-=======
 import 'package:thisjowi/i18n/translations.dart';
->>>>>>> develop
+import 'package:thisjowi/utils/api_config.dart';
 import 'database_service.dart';
 import 'connectivity_service.dart';
 import 'package:thisjowi/services/auth_service.dart';

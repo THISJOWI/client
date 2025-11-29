@@ -2,14 +2,8 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
-<<<<<<< HEAD
 import 'package:thisjowi/utils/api_config.dart';
-import '../models/note.dart';
-
-=======
 import '../backend/models/note.dart';
-import '../core/api_config.dart';
->>>>>>> develop
 import 'auth_service.dart';
 
 /// Service to connect with the notes API.
