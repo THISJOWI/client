@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/appColors.dart';
-import '../../models/password_entry.dart';
+import '../../backend/models/password_entry.dart';
 import '../../backend/repository/passwords_repository.dart';
+import '../../components/error_snack_bar.dart';
 import '../../i18n/translations.dart';
 
 class EditPasswordScreen extends StatefulWidget {
@@ -30,6 +31,12 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
   final FocusNode _websiteFocusNode = FocusNode();
   bool _isSaving = false;
   bool _showPassword = false;
+  
+  // Error states for each field
+  String? _titleError;
+  String? _usernameError;
+  String? _passwordError;
+  String? _websiteError;
 
   @override
   void initState() {
@@ -53,43 +60,53 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
     super.dispose();
   }
 
+  void _clearErrors() {
+    setState(() {
+      _titleError = null;
+      _usernameError = null;
+      _passwordError = null;
+      _websiteError = null;
+    });
+  }
+
   Future<void> _save() async {
     final titleText = _titleController.text.trim();
     final usernameText = _usernameController.text.trim();
     final passwordText = _passwordController.text.trim();
     final websiteText = _websiteController.text.trim();
     
-    // Validate title
+    // Reset errors
+    _clearErrors();
+    
+    bool hasError = false;
+    
+    // Validate all fields and show all errors at once
     if (titleText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter a title'.i18n)),
-      );
-      return;
+      _titleError = 'Please enter a title'.i18n;
+      hasError = true;
     }
     
-    // Validate password
-    if (passwordText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter a password'.i18n)),
-      );
-      return;
-    }
-    
-    // Validate username
     if (usernameText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter a username'.i18n)),
-      );
-      return;
+      _usernameError = 'Please enter a username'.i18n;
+      hasError = true;
+    }
+    
+    if (passwordText.isEmpty) {
+      _passwordError = 'Please enter a password'.i18n;
+      hasError = true;
     }
     
     // Validate website format (optional, but if provided must have http/https)
     if (websiteText.isNotEmpty && 
         !websiteText.startsWith('http://') && 
         !websiteText.startsWith('https://')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Website must start with http:// or https://'.i18n)),
-      );
+      _websiteError = 'Website must start with http:// or https://'.i18n;
+      hasError = true;
+    }
+    
+    if (hasError) {
+      setState(() {});
+      ErrorSnackBar.showWarning(context, 'Please fix the highlighted fields'.i18n);
       return;
     }
     
@@ -144,6 +161,8 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
                   label: 'Title'.i18n,
                   icon: Icons.title,
                   nextFocusNode: _usernameFocusNode,
+                  errorText: _titleError,
+                  onChanged: (_) { if (_titleError != null) setState(() => _titleError = null); },
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
@@ -152,6 +171,8 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
                   icon: Icons.person,
                   focusNode: _usernameFocusNode,
                   nextFocusNode: _passwordFocusNode,
+                  errorText: _usernameError,
+                  onChanged: (_) { if (_usernameError != null) setState(() => _usernameError = null); },
                 ),
                 const SizedBox(height: 16),
                 _buildPasswordField(),
@@ -162,6 +183,8 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
                   icon: Icons.link,
                   focusNode: _websiteFocusNode,
                   isLast: true,
+                  errorText: _websiteError,
+                  onChanged: (_) { if (_websiteError != null) setState(() => _websiteError = null); },
                 ),
                 const SizedBox(height: 40),
                 _buildSaveButton(),
@@ -181,56 +204,110 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
     FocusNode? focusNode,
     FocusNode? nextFocusNode,
     bool isLast = false,
+    String? errorText,
+    void Function(String)? onChanged,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.text.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.text.withOpacity(0.1), width: 1),
-      ),
-      child: TextFormField(
-        controller: controller,
-        focusNode: focusNode,
-        style: const TextStyle(color: AppColors.text, fontSize: 16),
-        textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
-        onFieldSubmitted: (_) {
-          if (isLast) {
-            if (!_isSaving) _save();
-          } else {
-            nextFocusNode?.requestFocus();
-          }
-        },
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6), fontSize: 14),
-          prefixIcon: Icon(icon, color: AppColors.text.withOpacity(0.6), size: 20),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    final hasError = errorText != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: hasError 
+                ? Colors.red.withOpacity(0.08) 
+                : AppColors.text.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: hasError 
+                  ? Colors.red.withOpacity(0.6) 
+                  : AppColors.text.withOpacity(0.1), 
+              width: hasError ? 1.5 : 1,
+            ),
+          ),
+          child: TextFormField(
+            controller: controller,
+            focusNode: focusNode,
+            style: const TextStyle(color: AppColors.text, fontSize: 16),
+            textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
+            onFieldSubmitted: (_) {
+              if (isLast) {
+                if (!_isSaving) _save();
+              } else {
+                nextFocusNode?.requestFocus();
+              }
+            },
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(
+                color: hasError ? Colors.red.withOpacity(0.8) : AppColors.text.withOpacity(0.6), 
+                fontSize: 14,
+              ),
+              prefixIcon: Icon(
+                icon, 
+                color: hasError ? Colors.red.withOpacity(0.7) : AppColors.text.withOpacity(0.6), 
+                size: 20,
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            validator: validator,
+          ),
         ),
-        validator: validator,
-      ),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 6),
+            child: Text(
+              errorText,
+              style: TextStyle(
+                color: Colors.red.withOpacity(0.9),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
   Widget _buildPasswordField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.text.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.text.withOpacity(0.1), width: 1),
-      ),
-      child: TextFormField(
-        controller: _passwordController,
-        focusNode: _passwordFocusNode,
-        style: const TextStyle(color: AppColors.text, fontSize: 16),
-        obscureText: !_showPassword,
-        textInputAction: TextInputAction.next,
-        onFieldSubmitted: (_) => _websiteFocusNode.requestFocus(),
-        decoration: InputDecoration(
-          labelText: 'Password'.i18n,
-          labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6), fontSize: 14),
-          prefixIcon: Icon(Icons.lock, color: AppColors.text.withOpacity(0.6), size: 20),
-          suffixIcon: Row(
+    final hasError = _passwordError != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: hasError 
+                ? Colors.red.withOpacity(0.08) 
+                : AppColors.text.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: hasError 
+                  ? Colors.red.withOpacity(0.6) 
+                  : AppColors.text.withOpacity(0.1), 
+              width: hasError ? 1.5 : 1,
+            ),
+          ),
+          child: TextFormField(
+            controller: _passwordController,
+            focusNode: _passwordFocusNode,
+            style: const TextStyle(color: AppColors.text, fontSize: 16),
+            obscureText: !_showPassword,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => _websiteFocusNode.requestFocus(),
+            onChanged: (_) { if (_passwordError != null) setState(() => _passwordError = null); },
+            decoration: InputDecoration(
+              labelText: 'Password'.i18n,
+              labelStyle: TextStyle(
+                color: hasError ? Colors.red.withOpacity(0.8) : AppColors.text.withOpacity(0.6), 
+                fontSize: 14,
+              ),
+              prefixIcon: Icon(
+                Icons.lock, 
+                color: hasError ? Colors.red.withOpacity(0.7) : AppColors.text.withOpacity(0.6), 
+                size: 20,
+              ),
+              suffixIcon: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
@@ -258,10 +335,24 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
               ),
             ],
           ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+          ),
         ),
-      ),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 6),
+            child: Text(
+              _passwordError!,
+              style: TextStyle(
+                color: Colors.red.withOpacity(0.9),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
     );
   }
 

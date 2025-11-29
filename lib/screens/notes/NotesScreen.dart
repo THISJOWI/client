@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:thisjowi/screens/password/EditPasswordScreen.dart';
 import 'package:thisjowi/core/appColors.dart';
-import 'package:thisjowi/models/note.dart';
+import 'package:thisjowi/backend/models/note.dart';
 import 'package:thisjowi/backend/repository/notes_repository.dart';
 import 'package:thisjowi/backend/repository/passwords_repository.dart';
 import 'package:thisjowi/services/notes_service.dart';

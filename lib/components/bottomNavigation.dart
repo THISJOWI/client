@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import 'package:thisjowi/core/appColors.dart';
 import 'package:thisjowi/screens/otp/TOPT.dart';
 import 'package:thisjowi/screens/home/HomeScreen.dart';
@@ -31,7 +30,7 @@ class _MyBottomNavigationState extends State<MyBottomNavigation> with SingleTick
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 15),
+            padding: const EdgeInsets.only(bottom: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

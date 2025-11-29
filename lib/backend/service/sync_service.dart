@@ -2,7 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:http/http.dart' as http;
+<<<<<<< HEAD
 import 'package:thisjowi/utils/api_config.dart';
+=======
+import 'package:thisjowi/i18n/translations.dart';
+>>>>>>> develop
 import 'database_service.dart';
 import 'connectivity_service.dart';
 import 'package:thisjowi/services/auth_service.dart';
@@ -81,7 +85,7 @@ class SyncService {
 
       _isSyncing = false;
       
-      print('✅ SYNC COMPLETADO:');
+      print('✅ SYNC COMPLETADO:'.i18n);
       print('   - Registros: ${registrationsResult['synced'] ?? 0} sync, ${registrationsResult['failed'] ?? 0} fail');
       print('   - Notas: ${notesResult['synced'] ?? 0} sync, ${notesResult['failed'] ?? 0} fail');
       print('   - Passwords: ${passwordsResult['synced'] ?? 0} sync, ${passwordsResult['failed'] ?? 0} fail');

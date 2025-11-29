@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:thisjowi/core/appColors.dart';
-import 'package:thisjowi/models/password_entry.dart';
-import 'package:thisjowi/models/note.dart';
+import 'package:thisjowi/backend/models/password_entry.dart';
+import 'package:thisjowi/backend/models/note.dart';
 import 'package:thisjowi/backend/repository/passwords_repository.dart';
 import 'package:thisjowi/backend/repository/notes_repository.dart';
 import 'package:thisjowi/services/password_service.dart';
@@ -406,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 // Notes Section
                                 if (_notes.isNotEmpty) ...[
                                   _buildSectionHeader(
-                                    icon: Icons.note_outlined,
+                                    icon: Icons.description_outlined,
                                     title: 'Notes'.i18n,
                                     count: _notes.length,
                                   ),

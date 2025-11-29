@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:thisjowi/core/appColors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:thisjowi/services/biometric_service.dart';
+import 'package:thisjowi/services/auth_service.dart';
+import 'package:thisjowi/screens/auth/biometric_auth_screen.dart';
+import 'package:thisjowi/components/bottomNavigation.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,6 +18,12 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  
+  final BiometricService _biometricService = BiometricService();
+  final AuthService _authService = AuthService();
+  
+  // Keys for SharedPreferences
+  static const String _appOpenCountKey = 'app_open_count';
 
   @override
   void initState() {
@@ -41,10 +51,10 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward();
 
     // Check if it's the first time and navigate accordingly
-    _checkFirstTime();
+    _checkFirstTimeAndBiometric();
   }
 
-  Future<void> _checkFirstTime() async {
+  Future<void> _checkFirstTimeAndBiometric() async {
     // Wait for the animation to complete
     await Future.delayed(const Duration(milliseconds: 2000));
 
@@ -52,16 +62,99 @@ class _SplashScreenState extends State<SplashScreen>
 
     final prefs = await SharedPreferences.getInstance();
     final hasSeenOnboarding = prefs.getBool('onboarding_completed') ?? false;
+    
+    // Increment app open count
+    final appOpenCount = (prefs.getInt(_appOpenCountKey) ?? 0) + 1;
+    await prefs.setInt(_appOpenCountKey, appOpenCount);
 
     if (!mounted) return;
 
-    if (hasSeenOnboarding) {
-      // Navigate to login
-      Navigator.of(context).pushReplacementNamed('/login');
-    } else {
-      // Navigate to onboarding
+    if (!hasSeenOnboarding) {
+      // First time: Navigate to onboarding
       Navigator.of(context).pushReplacementNamed('/onboarding');
+      return;
     }
+
+    // Check if biometric lock should be shown
+    // Show if: app has been opened more than once AND user has session AND biometrics are available
+    final shouldShowBiometric = await _shouldShowBiometricAuth(prefs, appOpenCount);
+    
+    if (shouldShowBiometric) {
+      _showBiometricAuth();
+    } else {
+      // Navigate based on session status
+      _navigateToMainScreen();
+    }
+  }
+  
+  Future<bool> _shouldShowBiometricAuth(SharedPreferences prefs, int appOpenCount) async {
+    // Only show if app has been opened more than once
+    if (appOpenCount <= 1) {
+      return false;
+    }
+    
+    // Check if user has a valid session (token)
+    final token = await _authService.getToken();
+    if (token == null || token.isEmpty) {
+      return false;
+    }
+    
+    // Check if biometric lock is enabled by user in settings
+    final biometricLockEnabled = await _biometricService.isBiometricLockEnabled();
+    if (!biometricLockEnabled) {
+      return false;
+    }
+    
+    // Check if device supports biometrics
+    final canUseBiometrics = await _biometricService.canCheckBiometrics();
+    final isDeviceSupported = await _biometricService.isDeviceSupported();
+    
+    return canUseBiometrics && isDeviceSupported;
+  }
+  
+  /// Navigate to the appropriate screen based on authentication status
+  void _navigateToMainScreen() {
+    _authService.getToken().then((token) {
+      if (!mounted) return;
+      
+      if (token != null && token.isNotEmpty) {
+        // User has valid session, go to Home
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const MyBottomNavigation()),
+        );
+      } else {
+        // No session, go to Login
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+    });
+  }
+  
+  void _showBiometricAuth() {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return BiometricAuthScreen(
+            onAuthenticated: () {
+              // Successfully authenticated, go to Home (user already has session)
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const MyBottomNavigation()),
+              );
+            },
+            onSkipped: () {
+              // User chose to skip biometric, go to Login to enter password
+              Navigator.of(context).pushReplacementNamed('/login');
+            },
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
   }
 
   @override

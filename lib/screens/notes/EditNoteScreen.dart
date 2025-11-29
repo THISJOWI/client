@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/appColors.dart';
-import '../../models/note.dart';
+import '../../backend/models/note.dart';
 import '../../backend/repository/notes_repository.dart';
 import '../../components/error_snack_bar.dart';
 import '../../i18n/translations.dart';
@@ -25,7 +25,10 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
   final _contentController = TextEditingController();
   final _contentFocusNode = FocusNode();
   bool _isLoading = false;
+  
+  // Error states for fields
   String? _titleError;
+  String? _contentError;
 
   @override
   void initState() {
@@ -45,11 +48,32 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
   }
 
   Future<void> _saveNote() async {
-    if (!_formKey.currentState!.validate()) return;
+    // Manual validation with visual feedback
+    setState(() {
+      _titleError = null;
+      _contentError = null;
+    });
+    
+    bool hasError = false;
+    
+    if (_titleController.text.trim().isEmpty) {
+      _titleError = 'Please enter a title'.i18n;
+      hasError = true;
+    }
+    
+    if (_contentController.text.trim().isEmpty) {
+      _contentError = 'Please enter the content'.i18n;
+      hasError = true;
+    }
+    
+    if (hasError) {
+      setState(() {});
+      ErrorSnackBar.showWarning(context, 'Please fix the highlighted fields'.i18n);
+      return;
+    }
 
     setState(() {
       _isLoading = true;
-      _titleError = null;
     });
 
     try {
@@ -129,76 +153,121 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
           key: _formKey,
           child: Column(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.text.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.text.withOpacity(0.1), width: 1),
-                ),
-                child: TextFormField(
-                  controller: _titleController,
-                  style: const TextStyle(color: AppColors.text, fontSize: 16),
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => _contentFocusNode.requestFocus(),
-                  decoration: InputDecoration(
-                    labelText: 'Title'.i18n,
-                    labelStyle: TextStyle(
-                      color: _titleError != null ? Colors.red : AppColors.text.withOpacity(0.6),
-                      fontSize: 14,
+              // Title field with error styling
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _titleError != null 
+                          ? Colors.red.withOpacity(0.08) 
+                          : AppColors.text.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _titleError != null 
+                            ? Colors.red.withOpacity(0.6) 
+                            : AppColors.text.withOpacity(0.1), 
+                        width: _titleError != null ? 1.5 : 1,
+                      ),
                     ),
-                    prefixIcon: Icon(Icons.note, color: AppColors.text.withOpacity(0.6), size: 20),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    errorText: _titleError,
-                    errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
+                    child: TextFormField(
+                      controller: _titleController,
+                      style: const TextStyle(color: AppColors.text, fontSize: 16),
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) => _contentFocusNode.requestFocus(),
+                      onChanged: (_) {
+                        if (_titleError != null) {
+                          setState(() => _titleError = null);
+                        }
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Title'.i18n,
+                        labelStyle: TextStyle(
+                          color: _titleError != null ? Colors.red.withOpacity(0.8) : AppColors.text.withOpacity(0.6),
+                          fontSize: 14,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.description_outlined, 
+                          color: _titleError != null ? Colors.red.withOpacity(0.7) : AppColors.text.withOpacity(0.6), 
+                          size: 20,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                    ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a title'.i18n;
-                    }
-                    return null;
-                  },
-                  onChanged: (_) {
-                    if (_titleError != null) {
-                      setState(() {
-                        _titleError = null;
-                      });
-                    }
-                  },
-                ),
+                  if (_titleError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12, top: 6),
+                      child: Text(
+                        _titleError!,
+                        style: TextStyle(
+                          color: Colors.red.withOpacity(0.9),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 16),
+              // Content field with error styling
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.text.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.text.withOpacity(0.1), width: 1),
-                  ),
-                  child: TextFormField(
-                    controller: _contentController,
-                    focusNode: _contentFocusNode,
-                    style: const TextStyle(color: AppColors.text, fontSize: 16),
-                    decoration: InputDecoration(
-                      labelText: 'Content'.i18n,
-                      alignLabelWithHint: true,
-                      labelStyle: TextStyle(
-                        color: AppColors.text.withOpacity(0.6),
-                        fontSize: 14,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _contentError != null 
+                              ? Colors.red.withOpacity(0.08) 
+                              : AppColors.text.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _contentError != null 
+                                ? Colors.red.withOpacity(0.6) 
+                                : AppColors.text.withOpacity(0.1), 
+                            width: _contentError != null ? 1.5 : 1,
+                          ),
+                        ),
+                        child: TextFormField(
+                          controller: _contentController,
+                          focusNode: _contentFocusNode,
+                          style: const TextStyle(color: AppColors.text, fontSize: 16),
+                          onChanged: (_) {
+                            if (_contentError != null) {
+                              setState(() => _contentError = null);
+                            }
+                          },
+                          decoration: InputDecoration(
+                            labelText: 'Content'.i18n,
+                            alignLabelWithHint: true,
+                            labelStyle: TextStyle(
+                              color: _contentError != null ? Colors.red.withOpacity(0.8) : AppColors.text.withOpacity(0.6),
+                              fontSize: 14,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.all(16),
+                          ),
+                          maxLines: null,
+                          expands: true,
+                          textAlignVertical: TextAlignVertical.top,
+                        ),
                       ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(16),
                     ),
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter the content'.i18n;
-                      }
-                      return null;
-                    },
-                  ),
+                    if (_contentError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12, top: 6),
+                        child: Text(
+                          _contentError!,
+                          style: TextStyle(
+                            color: Colors.red.withOpacity(0.9),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
