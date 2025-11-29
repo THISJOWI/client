@@ -17,7 +17,7 @@ dependencies:
   shared_preferences: ^2.1.1
   url_launcher: ^6.3.2
   provider: ^6.0.0
-  local_auth_darwin: ^2.0.0
+  local_auth: ^2.3.0
   
   # Offline mode & local database (drift - compatible con todas las plataformas)
   drift: ^2.22.1

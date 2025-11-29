@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../core/api_config.dart';
 import 'auth_service.dart';
+import 'credential_sharing_service.dart';
 
 /// Service to connect with the passwords API.
 ///
@@ -15,6 +16,7 @@ import 'auth_service.dart';
 class PasswordService {
   String get baseUrl => ApiConfig.passwordsUrl;
   final AuthService authService = AuthService();
+  final CredentialSharingService _credentialService = CredentialSharingService();
 
   Future<Map<String, String>?> _getAuthHeaders() async {
     final token = await authService.getToken();
@@ -97,6 +99,8 @@ class PasswordService {
       final body = _tryDecode(res.body);
 
       if (res.statusCode == 200 || res.statusCode == 201) {
+        // Sync with iOS AutoFill after adding password
+        _syncPasswordsWithAutofill();
         return {'success': true, 'message': 'Password added successfully'};
       } else if (res.statusCode == 401) {
         return {'success': false, 'message': 'Invalid or expired token. Please log in again.'};
@@ -137,6 +141,8 @@ class PasswordService {
       ).timeout(const Duration(seconds: 30));
 
       if (res.statusCode == 204 || res.statusCode == 200) {
+        // Sync with iOS AutoFill after updating password
+        _syncPasswordsWithAutofill();
         return {'success': true, 'message': 'Password updated successfully'};
       } else if (res.statusCode == 401) {
         return {'success': false, 'message': 'Invalid or expired token. Please log in again.'};
@@ -174,6 +180,8 @@ class PasswordService {
       ).timeout(const Duration(seconds: 30));
 
       if (res.statusCode == 204 || res.statusCode == 200) {
+        // Sync with iOS AutoFill after deleting password
+        _syncPasswordsWithAutofill();
         return {'success': true, 'message': 'Password deleted successfully'};
       } else if (res.statusCode == 401) {
         return {'success': false, 'message': 'Invalid or expired token. Please log in again.'};
@@ -195,5 +203,30 @@ class PasswordService {
     } catch (e) {
       return {'success': false, 'message': 'Failed to delete password: $e'};
     }
+  }
+
+  /// Sync passwords with iOS AutoFill extension
+  /// This is called automatically after add/update/delete operations
+  Future<void> _syncPasswordsWithAutofill() async {
+    try {
+      final result = await fetchPasswords();
+      if (result['success'] == true && result['data'] != null) {
+        final passwords = (result['data'] as List)
+            .map((e) => e as Map<String, dynamic>)
+            .toList();
+        
+        await _credentialService.syncPasswordsToSharedStorage(passwords);
+        await _credentialService.registerCredentialIdentities(passwords);
+      }
+    } catch (e) {
+      // Silently fail - autofill sync is not critical
+      print('Failed to sync with autofill: $e');
+    }
+  }
+
+  /// Manually sync all passwords with autofill services
+  /// Call this after login or when needed
+  Future<void> syncWithAutofill() async {
+    await _syncPasswordsWithAutofill();
   }
 }

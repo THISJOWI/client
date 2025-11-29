@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:thisjowi/core/appColors.dart';
 import 'package:thisjowi/backend/repository/auth_repository.dart';
 import 'package:thisjowi/services/auth_service.dart';
+import 'package:thisjowi/services/biometric_service.dart';
 import 'package:thisjowi/backend/service/database_service.dart';
 import 'package:thisjowi/backend/service/connectivity_service.dart';
 import 'package:thisjowi/backend/service/secure_storage_service.dart';
@@ -20,13 +21,52 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final FocusNode _passwordFocusNode = FocusNode();
+  final BiometricService _biometricService = BiometricService();
   AuthRepository? _authRepository;
   bool _isLoading = false;
+  bool _hasSavedSession = false;
+  bool _biometricAvailable = false;
+  String _biometricType = 'Biometric';
 
   @override
   void initState() {
     super.initState();
     _initAuthRepository();
+    _checkBiometricAvailability();
+  }
+
+  Future<void> _checkBiometricAvailability() async {
+    final authService = AuthService();
+    final token = await authService.getToken();
+    final canCheck = await _biometricService.canCheckBiometrics();
+    final isEnabled = await _biometricService.isBiometricEnabled();
+    final biometricType = await _biometricService.getBiometricTypeName();
+    
+    if (mounted) {
+      setState(() {
+        _hasSavedSession = token != null && token.isNotEmpty;
+        _biometricAvailable = canCheck && isEnabled && _hasSavedSession;
+        _biometricType = biometricType;
+      });
+    }
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    setState(() => _isLoading = true);
+    
+    final authenticated = await _biometricService.authenticate(
+      localizedReason: 'Authenticate to access ThisJowi'.i18n,
+    );
+    
+    if (authenticated && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MyBottomNavigation()),
+      );
+    } else if (mounted) {
+      setState(() => _isLoading = false);
+      ErrorSnackBar.show(context, 'Authentication failed'.i18n);
+    }
   }
 
   void _initAuthRepository() {
@@ -229,6 +269,53 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                 ),
               ),
+
+              /* BIOMETRIC LOGIN */
+              if (_biometricAvailable)
+                Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: Column(
+                    children: [
+                      Text(
+                        'or'.i18n,
+                        style: TextStyle(
+                          color: AppColors.text.withOpacity(0.5),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: _isLoading ? null : _handleBiometricLogin,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.text.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppColors.text.withOpacity(0.15),
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            _biometricType == 'Face ID'
+                                ? Icons.face_rounded
+                                : Icons.fingerprint_rounded,
+                            size: 40,
+                            color: AppColors.text.withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Use %s'.i18n.fill([_biometricType]),
+                        style: TextStyle(
+                          color: AppColors.text.withOpacity(0.6),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               /* REGISTER LINK */
               Padding(

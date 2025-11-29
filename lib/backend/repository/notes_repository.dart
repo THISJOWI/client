@@ -1,5 +1,5 @@
 import 'package:uuid/uuid.dart';
-import '../../models/note.dart' as models;
+import '../models/note.dart' as models;
 import '../service/database_service.dart';
 import '../service/connectivity_service.dart';
 import '../service/sync_service.dart';

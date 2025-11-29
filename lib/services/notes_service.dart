@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
-import '../models/note.dart';
+import '../backend/models/note.dart';
 import '../core/api_config.dart';
 import 'auth_service.dart';
 

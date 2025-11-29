@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:thisjowi/core/appColors.dart';
 import 'package:thisjowi/services/auth_service.dart';
+import 'package:thisjowi/services/biometric_service.dart';
 import 'package:thisjowi/backend/repository/auth_repository.dart';
 import 'package:thisjowi/backend/service/database_service.dart';
 import 'package:thisjowi/backend/service/connectivity_service.dart';
@@ -17,10 +18,14 @@ class SettingScreen extends StatefulWidget {
 
 class _SettingScreenState extends State<SettingScreen> {
   final AuthService _authService = AuthService();
+  final BiometricService _biometricService = BiometricService();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
+  bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
+  String _biometricType = 'Biometric';
   
   AuthRepository? _authRepository;
 
@@ -28,6 +33,7 @@ class _SettingScreenState extends State<SettingScreen> {
   void initState() {
     super.initState();
     _initRepository();
+    _loadBiometricStatus();
   }
   
   void _initRepository() {
@@ -37,6 +43,48 @@ class _SettingScreenState extends State<SettingScreen> {
       connectivityService: ConnectivityService(),
       secureStorageService: SecureStorageService(),
     );
+  }
+
+  Future<void> _loadBiometricStatus() async {
+    final canCheck = await _biometricService.canCheckBiometrics();
+    final isSupported = await _biometricService.isDeviceSupported();
+    final isEnabled = await _biometricService.isBiometricEnabled();
+    final biometricType = await _biometricService.getBiometricTypeName();
+    
+    if (mounted) {
+      setState(() {
+        _biometricAvailable = canCheck && isSupported;
+        _biometricEnabled = isEnabled;
+        _biometricType = biometricType;
+      });
+    }
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (value) {
+      // Authenticate before enabling
+      final authenticated = await _biometricService.authenticate(
+        localizedReason: 'Authenticate to enable biometric lock'.i18n,
+      );
+      
+      if (authenticated) {
+        await _biometricService.setBiometricEnabled(true);
+        if (mounted) {
+          setState(() => _biometricEnabled = true);
+          ErrorSnackBar.showSuccess(context, 'Biometric enabled'.i18n);
+        }
+      } else {
+        if (mounted) {
+          ErrorSnackBar.show(context, 'Authentication failed'.i18n);
+        }
+      }
+    } else {
+      await _biometricService.setBiometricEnabled(false);
+      if (mounted) {
+        setState(() => _biometricEnabled = false);
+        ErrorSnackBar.showSuccess(context, 'Biometric disabled'.i18n);
+      }
+    }
   }
 
   Widget _buildSettingItem({
@@ -488,6 +536,22 @@ class _SettingScreenState extends State<SettingScreen> {
             subtitle: 'Update your password'.i18n,
             onTap: _showChangePasswordDialog,
           ),
+          if (_biometricAvailable)
+            _buildSettingItem(
+              icon: _biometricType == 'Face ID' 
+                  ? Icons.face_rounded 
+                  : Icons.fingerprint_rounded,
+              title: 'Biometric Authentication'.i18n,
+              subtitle: 'Use %s to unlock app'.i18n.fill([_biometricType]),
+              trailing: Switch(
+                value: _biometricEnabled,
+                onChanged: _toggleBiometric,
+                activeColor: AppColors.text,
+                activeTrackColor: AppColors.text.withOpacity(0.3),
+                inactiveThumbColor: AppColors.text.withOpacity(0.5),
+                inactiveTrackColor: AppColors.text.withOpacity(0.1),
+              ),
+            ),
 
           // About Section
           Padding(
@@ -504,7 +568,7 @@ class _SettingScreenState extends State<SettingScreen> {
           _buildSettingItem(
             icon: Icons.info_outline,
             title: 'Application Version'.i18n,
-            subtitle: '1.0.2',
+            subtitle: '2.0.0',
           ),
           _buildSettingItem(
             icon: Icons.help_outline,

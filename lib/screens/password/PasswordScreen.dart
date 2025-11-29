@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:thisjowi/screens/notes/EditNoteScreen.dart';
 import 'package:thisjowi/core/appColors.dart';
-import 'package:thisjowi/models/password_entry.dart';
+import 'package:thisjowi/backend/models/password_entry.dart';
 import 'package:thisjowi/backend/repository/passwords_repository.dart';
 import 'package:thisjowi/backend/repository/notes_repository.dart';
 import 'package:thisjowi/services/password_service.dart';

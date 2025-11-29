@@ -158,7 +158,7 @@ class _ExpandableActionButtonState extends State<ExpandableActionButton>
         if (_isExpanded)
           _buildOptionButton(
             onTap: _handleCreateNote,
-            icon: Icons.note_add_rounded,
+            icon: Icons.description_outlined,
             label: 'Nota',
             bottomPadding: 75.0,
           ),
@@ -195,20 +195,6 @@ class _ExpandableActionButtonState extends State<ExpandableActionButton>
                     color: Colors.white.withOpacity(0.15 + (value * 0.1)),
                     width: 1,
                   ),
-                  boxShadow: [
-                    // Glow effect
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.05 + (value * 0.05)),
-                      blurRadius: 20,
-                      spreadRadius: -5,
-                    ),
-                    // Main shadow
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

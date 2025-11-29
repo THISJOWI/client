@@ -55,6 +55,14 @@ extension Localization on String {
         "en": "Confirm",
         "es": "Confirmar",
       } +
+      {
+        "en": "or",
+        "es": "o",
+      } +
+      {
+        "en": "Use %s",
+        "es": "Usar %s",
+      } +
 
       // ==================== AUTH ====================
       {
@@ -198,6 +206,10 @@ extension Localization on String {
       {
         "en": "Website must start with http:// or https://",
         "es": "El sitio web debe comenzar con http:// o https://",
+      } +
+      {
+        "en": "Please fix the highlighted fields",
+        "es": "Por favor corrige los campos marcados",
       } +
       {
         "en": "Password created successfully",
@@ -514,6 +526,64 @@ extension Localization on String {
       {
         "en": "No data yet",
         "es": "Aún no hay datos",
+      } +
+
+      // ==================== BIOMETRIC ====================
+      {
+        "en": "Biometric Authentication",
+        "es": "Autenticación biométrica",
+      } +
+      {
+        "en": "Use %s to unlock app",
+        "es": "Usar %s para desbloquear",
+      } +
+      {
+        "en": "App Locked",
+        "es": "App bloqueada",
+      } +
+      {
+        "en": "Authenticate to continue",
+        "es": "Autentícate para continuar",
+      } +
+      {
+        "en": "Authenticate to access ThisJowi",
+        "es": "Autentícate para acceder a ThisJowi",
+      } +
+      {
+        "en": "Authenticate to enable biometric lock",
+        "es": "Autentícate para activar el bloqueo biométrico",
+      } +
+      {
+        "en": "Authenticating...",
+        "es": "Autenticando...",
+      } +
+      {
+        "en": "Tap to use %s",
+        "es": "Toca para usar %s",
+      } +
+      {
+        "en": "Biometric not available",
+        "es": "Biometría no disponible",
+      } +
+      {
+        "en": "Your device does not support biometric authentication",
+        "es": "Tu dispositivo no soporta autenticación biométrica",
+      } +
+      {
+        "en": "Biometric enabled",
+        "es": "Biometría activada",
+      } +
+      {
+        "en": "Biometric disabled",
+        "es": "Biometría desactivada",
+      } +
+      {
+        "en": "Authentication failed",
+        "es": "Autenticación fallida",
+      } +
+      {
+        "en": "Please try again",
+        "es": "Por favor intenta de nuevo",
       };
 
   String get i18n => localize(this, _t);
