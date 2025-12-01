@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:thisjowi/core/appColors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:thisjowi/i18n/translations.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -19,32 +20,40 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
-  final List<OnboardingPage> _pages = [
-    OnboardingPage(
-      title: 'Welcome to THISJOWI!',
-      description: 'Securely manage your notes and passwords',
-      icon: Icons.lock_person_rounded,
-      color: AppColors.primary,
-    ),
-    OnboardingPage(
-      title: 'Smart Notes',
-      description: 'Create, organize, and sync across devices',
-      icon: Icons.note_alt_rounded,
-      color: AppColors.accent,
-    ),
-    OnboardingPage(
-      title: 'Password Manager',
-      description: 'Store and manage passwords securely',
-      icon: Icons.vpn_key_rounded,
-      color: AppColors.secondary,
-    ),
-    OnboardingPage(
-      title: 'Secure Authentication',
-      description: 'OAuth2 and biometric protection',
-      icon: Icons.fingerprint_rounded,
-      color: AppColors.primary,
-    ),
-  ];
+  List<OnboardingPage> _getPages(BuildContext context) {
+    return [
+      OnboardingPage(
+        title: 'Welcome to ThisJowi'.i18n,
+        description: 'Your secure password manager'.i18n,
+        icon: Icons.lock_person_rounded,
+        color: AppColors.primary,
+      ),
+      OnboardingPage(
+        title: 'Secure Storage'.i18n,
+        description: 'All your passwords encrypted and safe'.i18n,
+        icon: Icons.security,
+        color: AppColors.accent,
+      ),
+      OnboardingPage(
+        title: 'Offline Access'.i18n,
+        description: 'Access your data anytime, anywhere'.i18n,
+        icon: Icons.cloud_off,
+        color: AppColors.secondary,
+      ),
+      OnboardingPage(
+        title: 'Cloud Sync'.i18n,
+        description: 'Keep your data synced across all devices'.i18n,
+        icon: Icons.cloud_sync,
+        color: AppColors.primary,
+      ),
+      OnboardingPage(
+        title: 'Biometric Security'.i18n,
+        description: 'Quick and secure access with your fingerprint'.i18n,
+        icon: Icons.fingerprint_rounded,
+        color: AppColors.accent,
+      ),
+    ];
+  }
 
   @override
   void initState() {
@@ -103,6 +112,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final pages = _getPages(context);
+    
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -116,7 +127,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 child: TextButton(
                   onPressed: _completeOnboarding,
                   child: Text(
-                    'Skip',
+                    'Skip'.i18n,
                     style: TextStyle(
                       color: AppColors.text.withOpacity(0.6),
                       fontSize: 16,
@@ -132,15 +143,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               child: PageView.builder(
                 controller: _pageController,
                 onPageChanged: _onPageChanged,
-                itemCount: _pages.length,
+                itemCount: pages.length,
                 itemBuilder: (context, index) {
-                  return _buildPage(_pages[index]);
+                  return _buildPage(pages[index]);
                 },
               ),
             ),
 
             // Page indicators
-            _buildPageIndicators(),
+            _buildPageIndicators(pages.length),
 
             // Navigation buttons
             Padding(
@@ -162,7 +173,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           Icon(Icons.arrow_back_ios, color: AppColors.text),
                           const SizedBox(width: 4),
                           Text(
-                            'Atrás',
+                            'Back'.i18n,
                             style: TextStyle(
                               color: AppColors.text,
                               fontSize: 16,
@@ -177,7 +188,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   // Next/Finish button
                   ElevatedButton(
                     onPressed: () {
-                      if (_currentPage < _pages.length - 1) {
+                      if (_currentPage < pages.length - 1) {
                         _pageController.nextPage(
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
@@ -201,9 +212,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     child: Row(
                       children: [
                         Text(
-                          _currentPage < _pages.length - 1
-                              ? 'Next'
-                              : 'Get Started',
+                          _currentPage < pages.length - 1
+                              ? 'Next'.i18n
+                              : 'Get Started'.i18n,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -288,11 +299,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildPageIndicators() {
+  Widget _buildPageIndicators(int pageCount) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(
-        _pages.length,
+        pageCount,
         (index) => AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           margin: const EdgeInsets.symmetric(horizontal: 4),

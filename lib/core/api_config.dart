@@ -1,6 +1,8 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:thisjowi/core/env_loader.dart';
+
 
 /// Configuración centralizada de API para el proyecto ThisJowi
 /// Lee todas las variables desde .env
@@ -39,6 +41,12 @@ class ApiConfig {
     return '$baseUrl$path';
   }
   
+  /// URL completa para el servicio de OTP
+  static String get otpUrl {
+    final path = EnvLoader.getRequired('OTP_SERVICE_URL');
+    return '$baseUrl$path';
+  }
+  
   /// Timeout para las peticiones HTTP (en segundos)
   static int get requestTimeout => EnvLoader.getRequiredInt('REQUEST_TIMEOUT');
   
@@ -65,6 +73,7 @@ class ApiConfig {
       debugPrint('Auth URL: $authUrl');
       debugPrint('Notes URL: $notesUrl');
       debugPrint('Passwords URL: $passwordsUrl');
+      debugPrint('OTP URL: $otpUrl');
       debugPrint('Timeout: ${requestTimeout}s');
       debugPrint('═══════════════════════════════════════');
     }

@@ -52,7 +52,11 @@ flutter_launcher_icons:
   macos: 
     generate: true
     remove_alpha_ios: false
-  windows: true
-  web: true
+  windows:
+    generate: true
+    image_path: assets/logo.png
+  web:
+    generate: true
+    image_path: assets/logo.png
   image_path: assets/logo.png
   adaptive_icon_foreground: assets/logo.png

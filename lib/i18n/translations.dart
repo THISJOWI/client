@@ -584,6 +584,64 @@ extension Localization on String {
       {
         "en": "Please try again",
         "es": "Por favor intenta de nuevo",
+      } +
+
+      // ==================== ONBOARDING ====================
+      {
+        "en": "Welcome to ThisJowi",
+        "es": "Bienvenido a ThisJowi",
+      } +
+      {
+        "en": "Your secure password manager",
+        "es": "Tu gestor de contraseñas seguro",
+      } +
+      {
+        "en": "Secure Storage",
+        "es": "Almacenamiento seguro",
+      } +
+      {
+        "en": "All your passwords encrypted and safe",
+        "es": "Todas tus contraseñas cifradas y seguras",
+      } +
+      {
+        "en": "Offline Access",
+        "es": "Acceso sin conexión",
+      } +
+      {
+        "en": "Access your data anytime, anywhere",
+        "es": "Accede a tus datos en cualquier momento y lugar",
+      } +
+      {
+        "en": "Cloud Sync",
+        "es": "Sincronización en la nube",
+      } +
+      {
+        "en": "Keep your data synced across all devices",
+        "es": "Mantén tus datos sincronizados en todos tus dispositivos",
+      } +
+      {
+        "en": "Biometric Security",
+        "es": "Seguridad biométrica",
+      } +
+      {
+        "en": "Quick and secure access with your fingerprint",
+        "es": "Acceso rápido y seguro con tu huella digital",
+      } +
+      {
+        "en": "Get Started",
+        "es": "Comenzar",
+      } +
+      {
+        "en": "Next",
+        "es": "Siguiente",
+      } +
+      {
+        "en": "Skip",
+        "es": "Omitir",
+      } +
+      {
+        "en": "Back",
+        "es": "Atrás",
       };
 
   String get i18n => localize(this, _t);

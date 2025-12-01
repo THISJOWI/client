@@ -1,5 +1,5 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 
 /// Cargador de variables de entorno desde .env
 /// Se ejecuta PRIMERO antes de cualquier otra cosa

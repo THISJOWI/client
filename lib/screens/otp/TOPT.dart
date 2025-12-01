@@ -4,7 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:thisjowi/core/appColors.dart';
 import 'package:thisjowi/backend/models/otp_entry.dart';
 import 'package:thisjowi/backend/repository/otp_repository.dart';
+import 'package:thisjowi/i18n/translation_service.dart';
 import 'package:thisjowi/services/otp_service.dart';
+import 'package:thisjowi/services/otp_backend_service.dart';
+import 'package:thisjowi/services/auth_service.dart';
 import 'package:thisjowi/components/error_snack_bar.dart';
 import 'package:thisjowi/i18n/translations.dart';
 import 'package:flutter/foundation.dart';
@@ -19,7 +22,7 @@ class OtpScreen extends StatefulWidget {
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  final OtpRepository _otpRepository = OtpRepository();
+  late final OtpRepository _otpRepository;
   final OtpService _otpService = OtpService();
   
   List<OtpEntry> _entries = [];
@@ -30,6 +33,10 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void initState() {
     super.initState();
+    // Inicializar repositorio con servicios backend
+    final authService = AuthService();
+    final otpBackendService = OtpBackendService(authService);
+    _otpRepository = OtpRepository(otpBackendService);
     _loadEntries();
     // Actualizar códigos cada segundo
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -79,7 +86,7 @@ class _OtpScreenState extends State<OtpScreen> {
     );
     
     Clipboard.setData(ClipboardData(text: code));
-    ErrorSnackBar.showSuccess(context, 'Code copied'.i18n);
+    ErrorSnackBar.showSuccess(context, 'Code copied'.tr(context));
   }
 
   Future<void> _showAddDialog() async {
@@ -92,26 +99,26 @@ class _OtpScreenState extends State<OtpScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: const Color.fromRGBO(30, 30, 30, 1.0),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Add OTP'.i18n, style: const TextStyle(color: AppColors.text)),
+        title: Text('Add OTP'.tr(context), style: const TextStyle(color: AppColors.text)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildTextField(
                 controller: nameController,
-                label: 'Account name'.i18n,
+                label: 'Account name'.tr(context),
                 hint: 'user@example.com',
               ),
               const SizedBox(height: 16),
               _buildTextField(
                 controller: issuerController,
-                label: 'Issuer'.i18n,
+                label: 'Issuer'.tr(context),
                 hint: 'Google, GitHub...',
               ),
               const SizedBox(height: 16),
               _buildTextField(
                 controller: secretController,
-                label: 'Secret key'.i18n,
+                label: 'Secret key'.tr(context),
                 hint: 'JBSWY3DPEHPK3PXP',
               ),
             ],
@@ -120,7 +127,7 @@ class _OtpScreenState extends State<OtpScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'.i18n, style: TextStyle(color: AppColors.text.withOpacity(0.6))),
+            child: Text('Cancel'.tr(context), style: TextStyle(color: AppColors.text.withOpacity(0.6))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -128,7 +135,7 @@ class _OtpScreenState extends State<OtpScreen> {
               foregroundColor: Colors.black,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Add'.i18n),
+            child: Text('Add'.tr(context)),
           ),
         ],
       ),
@@ -139,12 +146,12 @@ class _OtpScreenState extends State<OtpScreen> {
       final secret = secretController.text.trim().replaceAll(' ', '');
       
       if (name.isEmpty || secret.isEmpty) {
-        ErrorSnackBar.show(context, 'Name and secret are required'.i18n);
+        ErrorSnackBar.show(context, 'Name and secret are required'.tr(context));
         return;
       }
       
       if (!_otpService.isValidSecret(secret)) {
-        ErrorSnackBar.show(context, 'Invalid secret key'.i18n);
+        ErrorSnackBar.show(context, 'Invalid secret key'.tr(context));
         return;
       }
       
@@ -155,7 +162,7 @@ class _OtpScreenState extends State<OtpScreen> {
       });
       
       if (addResult['success'] == true) {
-        ErrorSnackBar.showSuccess(context, 'OTP added'.i18n);
+        ErrorSnackBar.showSuccess(context, 'OTP added'.tr(context));
         _loadEntries();
       } else {
         ErrorSnackBar.show(context, addResult['message'] ?? 'Error');
@@ -171,20 +178,20 @@ class _OtpScreenState extends State<OtpScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: const Color.fromRGBO(30, 30, 30, 1.0),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Import OTP URI'.i18n, style: const TextStyle(color: AppColors.text)),
+        title: Text('Import OTP URI'.tr(context), style: const TextStyle(color: AppColors.text)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Paste the otpauth:// URI from your authenticator app'.i18n,
+                'Paste the otpauth:// URI from your authenticator app'.tr(context),
                 style: TextStyle(color: AppColors.text.withOpacity(0.7), fontSize: 13),
               ),
               const SizedBox(height: 16),
               _buildTextField(
                 controller: uriController,
-                label: 'OTP URI'.i18n,
+                label: 'OTP URI'.tr(context),
                 hint: 'otpauth://totp/...',
                 maxLines: 3,
               ),
@@ -194,7 +201,7 @@ class _OtpScreenState extends State<OtpScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'.i18n, style: TextStyle(color: AppColors.text.withOpacity(0.6))),
+            child: Text('Cancel'.tr(context), style: TextStyle(color: AppColors.text.withOpacity(0.6))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -202,7 +209,7 @@ class _OtpScreenState extends State<OtpScreen> {
               foregroundColor: Colors.black,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Import'.i18n),
+            child: Text('Import'.tr(context)),
           ),
         ],
       ),
@@ -212,14 +219,14 @@ class _OtpScreenState extends State<OtpScreen> {
       final uri = uriController.text.trim();
       
       if (!uri.startsWith('otpauth://')) {
-        ErrorSnackBar.show(context, 'Invalid OTP URI'.i18n);
+        ErrorSnackBar.show(context, 'Invalid OTP URI'.tr(context));
         return;
       }
       
       final addResult = await _otpRepository.addOtpFromUri(uri, '');
       
       if (addResult['success'] == true) {
-        ErrorSnackBar.showSuccess(context, 'OTP imported'.i18n);
+        ErrorSnackBar.showSuccess(context, 'OTP imported'.tr(context));
         _loadEntries();
       } else {
         ErrorSnackBar.show(context, addResult['message'] ?? 'Error');
@@ -232,7 +239,7 @@ class _OtpScreenState extends State<OtpScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color.fromRGBO(30, 30, 30, 1.0),
-        title: Text('Delete OTP?'.i18n, style: const TextStyle(color: AppColors.text)),
+        title: Text('Delete OTP?'.tr(context), style: const TextStyle(color: AppColors.text)),
         content: Text(
           'Are you sure you want to delete "${entry.issuer.isNotEmpty ? entry.issuer : entry.name}"?',
           style: const TextStyle(color: AppColors.text),
@@ -240,21 +247,24 @@ class _OtpScreenState extends State<OtpScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'.i18n, style: TextStyle(color: AppColors.text.withOpacity(0.6))),
+            child: Text('Cancel'.tr(context), style: TextStyle(color: AppColors.text.withOpacity(0.6))),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete'.i18n, style: const TextStyle(color: Colors.red)),
+            child: Text('Delete'.tr(context), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
     
     if (confirm == true) {
-      final result = await _otpRepository.deleteOtpEntry(entry.id);
+      final result = await _otpRepository.deleteOtpEntry(
+        entry.id,
+        serverId: entry.serverId,
+      );
       
       if (result['success'] == true) {
-        ErrorSnackBar.showSuccess(context, 'OTP deleted'.i18n);
+        ErrorSnackBar.showSuccess(context, 'OTP deleted'.tr(context));
         _loadEntries();
       } else {
         ErrorSnackBar.show(context, result['message'] ?? 'Error');
@@ -306,7 +316,7 @@ class _OtpScreenState extends State<OtpScreen> {
                   const Icon(Icons.security, color: AppColors.primary, size: 28),
                   const SizedBox(width: 12),
                   Text(
-                    'Authenticator'.i18n,
+                    'Authenticator'.tr(context),
                     style: const TextStyle(
                       color: AppColors.text,
                       fontSize: 24,
@@ -317,12 +327,12 @@ class _OtpScreenState extends State<OtpScreen> {
                   IconButton(
                     onPressed: _showImportDialog,
                     icon: const Icon(Icons.qr_code, color: AppColors.text),
-                    tooltip: 'Import URI'.i18n,
+                    tooltip: 'Import URI'.tr(context),
                   ),
                   IconButton(
                     onPressed: _showAddDialog,
                     icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                    tooltip: 'Add OTP'.i18n,
+                    tooltip: 'Add OTP'.tr(context),
                   ),
                   if (!(kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux))
                     IconButton(
@@ -331,7 +341,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         if (result == true) _loadEntries();
                       },
                       icon: const Icon(Icons.camera_alt, color: AppColors.primary),
-                      tooltip: 'Scan QR'.i18n,
+                      tooltip: 'Scan QR'.tr(context),
                     ),
                 ],
               ),
@@ -347,7 +357,7 @@ class _OtpScreenState extends State<OtpScreen> {
                 },
                 style: const TextStyle(color: AppColors.text),
                 decoration: InputDecoration(
-                  hintText: 'Search...'.i18n,
+                  hintText: 'Search...'.tr(context),
                   hintStyle: TextStyle(color: AppColors.text.withOpacity(0.5)),
                   prefixIcon: Icon(Icons.search, color: AppColors.text.withOpacity(0.5)),
                   filled: true,
@@ -397,7 +407,7 @@ class _OtpScreenState extends State<OtpScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No OTP entries yet'.i18n,
+            'No OTP entries yet'.tr(context),
             style: TextStyle(
               color: AppColors.text.withOpacity(0.5),
               fontSize: 18,
@@ -405,7 +415,7 @@ class _OtpScreenState extends State<OtpScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Add your first authenticator code'.i18n,
+            'Add your first authenticator code'.tr(context),
             style: TextStyle(
               color: AppColors.text.withOpacity(0.3),
               fontSize: 14,
@@ -418,7 +428,7 @@ class _OtpScreenState extends State<OtpScreen> {
               OutlinedButton.icon(
                 onPressed: _showImportDialog,
                 icon: const Icon(Icons.qr_code),
-                label: Text('Import URI'.i18n),
+                label: Text('Import URI'.tr(context)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.text,
                   side: BorderSide(color: AppColors.text.withOpacity(0.3)),
@@ -428,7 +438,7 @@ class _OtpScreenState extends State<OtpScreen> {
               ElevatedButton.icon(
                 onPressed: _showAddDialog,
                 icon: const Icon(Icons.add),
-                label: Text('Add manually'.i18n),
+                label: Text('Add manually'.tr(context)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.black,
@@ -442,7 +452,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     if (result == true) _loadEntries();
                   },
                   icon: const Icon(Icons.camera_alt),
-                  label: Text('Scan QR'.i18n),
+                  label: Text('Scan QR'.tr(context)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.black,
@@ -615,7 +625,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Tap to copy'.i18n,
+                      'Tap to copy'.tr(context),
                       style: TextStyle(
                         color: AppColors.text.withOpacity(0.3),
                         fontSize: 12,
