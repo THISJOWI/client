@@ -587,9 +587,10 @@ class _OtpScreenState extends State<OtpScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          (entry.issuer.isNotEmpty ? entry.issuer : entry.name)
-                              .substring(0, 1)
-                              .toUpperCase(),
+                          () {
+                            final text = entry.issuer.isNotEmpty ? entry.issuer : entry.name;
+                            return text.isNotEmpty ? text.substring(0, 1).toUpperCase() : '?';
+                          }(),
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontSize: 20,

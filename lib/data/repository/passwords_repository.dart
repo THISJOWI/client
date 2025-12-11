@@ -1,6 +1,8 @@
 import 'package:uuid/uuid.dart';
 import '../models/password_entry.dart';
 import '../local/app_database.dart';
+import '../../services/password_service.dart';
+import '../../services/connectivity_service.dart';
 
 /// Repository for managing passwords with offline-first approach
 /// 
@@ -9,12 +11,19 @@ import '../local/app_database.dart';
 class PasswordsRepository {
   final AppDatabase _db = AppDatabase.instance();
   final Uuid _uuid = const Uuid();
+  final PasswordService _passwordService = PasswordService();
+  final ConnectivityService _connectivityService = ConnectivityService();
 
   PasswordsRepository();
 
   /// Get all passwords from local database
   Future<Map<String, dynamic>> getAllPasswords() async {
     try {
+      // Trigger background sync if online
+      if (_connectivityService.isOnline) {
+        _syncFromServer();
+      }
+
       final localPasswords = await _db.passwordsDao.getAllPasswords();
       final passwords = localPasswords
           .map((data) => PasswordEntry.fromJson(data))
@@ -31,6 +40,60 @@ class PasswordsRepository {
         'message': 'Failed to load passwords: $e',
         'data': <PasswordEntry>[]
       };
+    }
+  }
+
+  /// Sync passwords from server to local database
+  Future<void> _syncFromServer() async {
+    try {
+      final result = await _passwordService.fetchPasswords();
+      
+      if (result['success'] == true && result['data'] != null) {
+        final serverPasswords = result['data'] as List;
+        
+        for (final item in serverPasswords) {
+          // The server returns JSON with 'id' as the server ID.
+          // We treat this as the serverId for our local storage.
+          final serverId = item['id']?.toString();
+          if (serverId == null || serverId.isEmpty) continue;
+          
+          // Check if exists locally by serverId
+          final existingLocal = await _db.passwordsDao.getPasswordByServerId(serverId);
+          
+          if (existingLocal != null) {
+            // Update existing
+            await _db.passwordsDao.updatePassword(existingLocal['id'], {
+              'title': item['title'] ?? '',
+              'username': item['username'] ?? '',
+              'password': item['password'] ?? '',
+              'website': item['website'] ?? '',
+              'notes': item['notes'] ?? '',
+              'updatedAt': DateTime.now().toIso8601String(),
+              'syncStatus': 'synced',
+              'lastSyncedAt': DateTime.now().toIso8601String(),
+            });
+          } else {
+            // Insert new from server
+            final localId = _uuid.v4();
+            await _db.passwordsDao.insertPassword({
+              'id': localId,
+              'title': item['title'] ?? '',
+              'username': item['username'] ?? '',
+              'password': item['password'] ?? '',
+              'website': item['website'] ?? '',
+              'notes': item['notes'] ?? '',
+              'userId': item['userId']?.toString() ?? '',
+              'createdAt': item['createdAt'] ?? DateTime.now().toIso8601String(),
+              'updatedAt': item['updatedAt'] ?? DateTime.now().toIso8601String(),
+              'serverId': serverId,
+              'syncStatus': 'synced',
+              'lastSyncedAt': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Server sync failed: $e');
     }
   }
 
@@ -58,7 +121,10 @@ class PasswordsRepository {
       // Save to local database first (FAST)
       await _db.passwordsDao.insertPassword(dataToSave);
 
-      // Sync disabled
+      // Sync with backend in BACKGROUND (non-blocking)
+      if (_connectivityService.isOnline) {
+        _syncPasswordInBackground(localId, dataToSave);
+      }
 
       return {
         'success': true,
@@ -70,6 +136,33 @@ class PasswordsRepository {
         'success': false,
         'message': 'Failed to create password: $e'
       };
+    }
+  }
+
+  /// Sync a newly created password with backend
+  Future<void> _syncPasswordInBackground(String localId, Map<String, dynamic> passwordData) async {
+    try {
+      final result = await _passwordService.addPassword(passwordData);
+      
+      if (result['success'] == true) {
+        // In a real implementation, the backend should return the server ID
+        // For now, we assume success means it's synced. 
+        // If the backend returns an ID, we should update 'serverId' here.
+        
+        await _db.passwordsDao.updatePassword(localId, {
+          'syncStatus': 'synced',
+          'lastSyncedAt': DateTime.now().toIso8601String(),
+        });
+      } else {
+        await _db.passwordsDao.updatePassword(localId, {
+          'syncStatus': 'error',
+        });
+      }
+    } catch (e) {
+      print('Background password sync failed: $e');
+      await _db.passwordsDao.updatePassword(localId, {
+        'syncStatus': 'error',
+      });
     }
   }
 
@@ -94,7 +187,16 @@ class PasswordsRepository {
       // Update in local database first (FAST)
       await _db.passwordsDao.updatePassword(id, dataToUpdate);
 
-      // Sync disabled
+      // Sync with backend in BACKGROUND (non-blocking)
+      if (_connectivityService.isOnline) {
+        // We need the serverId to update on backend. 
+        // We should fetch the current record to get serverId if not passed.
+        // For simplicity, we assume the caller might not know serverId, so we check DB.
+        final current = await _db.passwordsDao.getPasswordById(id);
+        if (current != null && current['serverId'] != null) {
+           _syncPasswordUpdateInBackground(id, current['serverId'], dataToUpdate);
+        }
+      }
 
       return {
         'success': true,
@@ -108,13 +210,39 @@ class PasswordsRepository {
     }
   }
 
+  /// Sync a password update with backend
+  Future<void> _syncPasswordUpdateInBackground(String localId, String serverId, Map<String, dynamic> passwordData) async {
+    try {
+      final result = await _passwordService.updatePassword(serverId, passwordData);
+      
+      if (result['success'] == true) {
+        await _db.passwordsDao.updatePassword(localId, {
+          'syncStatus': 'synced',
+          'lastSyncedAt': DateTime.now().toIso8601String(),
+        });
+      } else {
+        await _db.passwordsDao.updatePassword(localId, {
+          'syncStatus': 'error',
+        });
+      }
+    } catch (e) {
+      print('Background password update sync failed: $e');
+      await _db.passwordsDao.updatePassword(localId, {
+        'syncStatus': 'error',
+      });
+    }
+  }
+
   /// Delete a password (FAST - deleted locally, synced in background)
   Future<Map<String, dynamic>> deletePassword(String id, {String? serverId}) async {
     try {
       // Delete from local database first (FAST)
       await _db.passwordsDao.deletePassword(id);
 
-      // Sync disabled
+      // Sync with backend in BACKGROUND (non-blocking)
+      if (serverId != null && _connectivityService.isOnline) {
+        _syncPasswordDeletionInBackground(serverId);
+      }
 
       return {
         'success': true,
@@ -125,6 +253,15 @@ class PasswordsRepository {
         'success': false,
         'message': 'Failed to delete password: $e'
       };
+    }
+  }
+
+  /// Sync a password deletion with backend
+  Future<void> _syncPasswordDeletionInBackground(String serverId) async {
+    try {
+      await _passwordService.deletePassword(serverId);
+    } catch (e) {
+      print('Background password deletion sync failed: $e');
     }
   }
 

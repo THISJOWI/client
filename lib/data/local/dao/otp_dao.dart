@@ -71,6 +71,33 @@ class OtpDao extends DatabaseAccessor<AppDatabase> with _$OtpDaoMixin {
     };
   }
 
+  Future<Map<String, dynamic>?> getOtpEntryByServerId(String serverId) async {
+    final query = select(otpEntries)
+      ..where((o) => o.serverId.equals(serverId))
+      ..limit(1);
+    
+    final results = await query.get();
+    if (results.isEmpty) return null;
+    
+    final otp = results.first;
+    return {
+      'id': otp.id,
+      'name': otp.name,
+      'issuer': otp.issuer,
+      'secret': otp.secret,
+      'digits': otp.digits,
+      'period': otp.period,
+      'algorithm': otp.algorithm,
+      'type': otp.type,
+      'userId': otp.userId,
+      'createdAt': otp.createdAt,
+      'updatedAt': otp.updatedAt,
+      'syncStatus': otp.syncStatus,
+      'lastSyncedAt': otp.lastSyncedAt,
+      'serverId': otp.serverId,
+    };
+  }
+
   Future<int> insertOtpEntry(Map<String, dynamic> entry) async {
     final userEmail = await _getCurrentUserEmail();
     

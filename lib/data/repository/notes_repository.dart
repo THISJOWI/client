@@ -1,6 +1,9 @@
 import 'package:uuid/uuid.dart';
 import '../models/note.dart' as models;
 import '../local/app_database.dart';
+import '../../services/notes_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/connectivity_service.dart';
 
 /// Repository for managing notes with offline-first approach
 /// 
@@ -9,12 +12,19 @@ import '../local/app_database.dart';
 class NotesRepository {
   final AppDatabase _db = AppDatabase.instance();
   final Uuid _uuid = const Uuid();
+  final NotesService _notesService = NotesService(AuthService());
+  final ConnectivityService _connectivityService = ConnectivityService();
 
   NotesRepository();
 
   /// Get all notes from local database
   Future<Map<String, dynamic>> getAllNotes() async {
     try {
+      // Trigger background sync if online
+      if (_connectivityService.isOnline) {
+        _syncFromServer();
+      }
+
       final localNotes = await _db.notesDao.getAllNotes();
       final notes = localNotes.map((data) => models.Note.fromJson(data)).toList();
 
@@ -29,6 +39,50 @@ class NotesRepository {
         'message': 'Failed to load notes: $e',
         'data': <models.Note>[]
       };
+    }
+  }
+
+  /// Sync notes from server to local database
+  Future<void> _syncFromServer() async {
+    try {
+      final result = await _notesService.getAllNotes();
+      
+      if (result['success'] == true && result['data'] != null) {
+        final serverNotes = result['data'] as List<models.Note>;
+        
+        for (final serverNote in serverNotes) {
+          if (serverNote.id == null) continue;
+          
+          // Check if exists locally
+          final existingLocal = await _db.notesDao.getNoteByServerId(serverNote.id!);
+          
+          if (existingLocal != null) {
+            // Update existing
+            await _db.notesDao.updateNote(existingLocal['localId'], {
+              'title': serverNote.title,
+              'content': serverNote.content,
+              'updatedAt': DateTime.now().toIso8601String(),
+              'syncStatus': 'synced',
+              'lastSyncedAt': DateTime.now().toIso8601String(),
+            });
+          } else {
+            // Insert new from server
+            final localId = _uuid.v4();
+            await _db.notesDao.insertNote({
+              'localId': localId,
+              'title': serverNote.title,
+              'content': serverNote.content,
+              'createdAt': serverNote.createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+              'updatedAt': serverNote.updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+              'serverId': serverNote.id,
+              'syncStatus': 'synced',
+              'lastSyncedAt': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Server sync failed: $e');
     }
   }
 
@@ -58,7 +112,9 @@ class NotesRepository {
       );
 
       // Sync with backend in BACKGROUND (non-blocking)
-      // Sync disabled
+      if (_connectivityService.isOnline) {
+        _syncNoteInBackground(localId, createdNote);
+      }
 
       return {
         'success': true,
@@ -70,6 +126,35 @@ class NotesRepository {
         'success': false,
         'message': 'Failed to create note: $e'
       };
+    }
+  }
+
+  /// Sync a newly created note with backend
+  Future<void> _syncNoteInBackground(String localId, models.Note note) async {
+    try {
+      final result = await _notesService.createNote(note);
+      
+      if (result['success'] == true && result['data'] != null) {
+        final serverNote = result['data'] as models.Note;
+        
+        // Update local record with server ID and synced status
+        await _db.notesDao.updateNote(localId, {
+          'serverId': serverNote.id,
+          'syncStatus': 'synced',
+          'lastSyncedAt': DateTime.now().toIso8601String(),
+        });
+      } else {
+        // Mark as error if sync failed
+        await _db.notesDao.updateNote(localId, {
+          'syncStatus': 'error',
+        });
+      }
+    } catch (e) {
+      print('Background sync failed: $e');
+      // Mark as error
+      await _db.notesDao.updateNote(localId, {
+        'syncStatus': 'error',
+      });
     }
   }
 
@@ -93,7 +178,10 @@ class NotesRepository {
         syncStatus: 'pending',
       );
 
-      // Sync disabled
+      // Sync with backend in BACKGROUND (non-blocking)
+      if (_connectivityService.isOnline) {
+        _syncNoteUpdateInBackground(localId, updatedNote);
+      }
 
       return {
         'success': true,
@@ -108,13 +196,44 @@ class NotesRepository {
     }
   }
 
+  /// Sync a note update with backend
+  Future<void> _syncNoteUpdateInBackground(String localId, models.Note note) async {
+    // If note doesn't have server ID, we can't update it on server yet
+    // It will be handled by the create sync or a full sync
+    if (note.serverId == null) return;
+
+    try {
+      final result = await _notesService.updateNote(note.title, note);
+      
+      if (result['success'] == true) {
+        // Update local record as synced
+        await _db.notesDao.updateNote(localId, {
+          'syncStatus': 'synced',
+          'lastSyncedAt': DateTime.now().toIso8601String(),
+        });
+      } else {
+        await _db.notesDao.updateNote(localId, {
+          'syncStatus': 'error',
+        });
+      }
+    } catch (e) {
+      print('Background update sync failed: $e');
+      await _db.notesDao.updateNote(localId, {
+        'syncStatus': 'error',
+      });
+    }
+  }
+
   /// Delete a note (FAST - deleted locally, synced in background)
   Future<Map<String, dynamic>> deleteNote(String localId, {String? serverId}) async {
     try {
       // Delete from local database first (FAST)
       await _db.notesDao.deleteNote(localId);
 
-      // Sync disabled
+      // Sync with backend in BACKGROUND (non-blocking)
+      if (serverId != null && _connectivityService.isOnline) {
+        _syncNoteDeletionInBackground(serverId);
+      }
 
       return {
         'success': true,
@@ -125,6 +244,19 @@ class NotesRepository {
         'success': false,
         'message': 'Failed to delete note: $e'
       };
+    }
+  }
+
+  /// Sync a note deletion with backend
+  Future<void> _syncNoteDeletionInBackground(String serverId) async {
+    try {
+      // We don't need to update local DB as the record is already deleted
+      // Just try to delete from server
+      await _notesService.deleteNote(int.parse(serverId));
+    } catch (e) {
+      print('Background deletion sync failed: $e');
+      // In a real app, we might want to store this deletion in a "deleted_queue" table
+      // to retry later. For now, we just log it.
     }
   }
 

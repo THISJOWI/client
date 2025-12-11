@@ -1,6 +1,10 @@
 import 'package:uuid/uuid.dart';
 import '../models/otp_entry.dart' as model;
 import '../local/app_database.dart';
+import '../../services/otp_api_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/connectivity_service.dart';
+import '../local/secure_storage_service.dart';
 
 /// Repository para gestionar las entradas OTP con enfoque offline-first
 /// 
@@ -8,12 +12,20 @@ import '../local/app_database.dart';
 class OtpRepository {
   final AppDatabase _db = AppDatabase.instance();
   final Uuid _uuid = const Uuid();
+  final OtpApiService _otpApiService = OtpApiService(AuthService());
+  final ConnectivityService _connectivityService = ConnectivityService();
+  final SecureStorageService _secureStorageService = SecureStorageService();
 
   OtpRepository();
 
   /// Obtener todas las entradas OTP
   Future<Map<String, dynamic>> getAllOtpEntries() async {
     try {
+      // Trigger background sync if online
+      if (_connectivityService.isOnline) {
+        _syncFromServer();
+      }
+
       final localEntries = await _db.otpDao.getAllOtpEntries();
       final entries = localEntries.map((e) => model.OtpEntry.fromJson(e)).toList();
       return {
@@ -27,6 +39,65 @@ class OtpRepository {
         'message': 'Failed to load OTP entries: $e',
         'data': <model.OtpEntry>[]
       };
+    }
+  }
+
+  /// Sync OTP entries from server to local database
+  Future<void> _syncFromServer() async {
+    try {
+      final result = await _otpApiService.getAllOtpEntries();
+      
+      if (result['success'] == true && result['data'] != null) {
+        final serverEntries = result['data'] as List<model.OtpEntry>;
+        
+        // Get current user email to associate with synced entries
+        final userEmail = await _secureStorageService.getValue('cached_email');
+        if (userEmail == null) return;
+
+        for (final serverEntry in serverEntries) {
+          if (serverEntry.id.isEmpty) continue;
+          
+          // Check if exists locally by serverId
+          final existingLocal = await _db.otpDao.getOtpEntryByServerId(serverEntry.id);
+          
+          if (existingLocal != null) {
+            // Update existing
+            await _db.otpDao.updateOtpEntry(existingLocal['id'], {
+              'name': serverEntry.name,
+              'issuer': serverEntry.issuer,
+              'secret': serverEntry.secret,
+              'digits': serverEntry.digits,
+              'period': serverEntry.period,
+              'algorithm': serverEntry.algorithm,
+              'type': serverEntry.type,
+              'updatedAt': DateTime.now().toIso8601String(),
+              'syncStatus': 'synced',
+              'lastSyncedAt': DateTime.now().toIso8601String(),
+            });
+          } else {
+            // Insert new from server
+            final localId = _uuid.v4();
+            await _db.otpDao.insertOtpEntry({
+              'id': localId,
+              'name': serverEntry.name,
+              'issuer': serverEntry.issuer,
+              'secret': serverEntry.secret,
+              'digits': serverEntry.digits,
+              'period': serverEntry.period,
+              'algorithm': serverEntry.algorithm,
+              'type': serverEntry.type,
+              'userId': userEmail, // Use local email instead of server ID
+              'createdAt': serverEntry.createdAt.toIso8601String(),
+              'updatedAt': serverEntry.updatedAt.toIso8601String(),
+              'serverId': serverEntry.id,
+              'syncStatus': 'synced',
+              'lastSyncedAt': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Server sync failed: $e');
     }
   }
 
@@ -46,9 +117,16 @@ class OtpRepository {
       
       await _db.otpDao.insertOtpEntry(entry);
       
+      final createdEntry = model.OtpEntry.fromJson(entry);
+
+      // Sync with backend in BACKGROUND (non-blocking)
+      if (_connectivityService.isOnline) {
+        _syncOtpInBackground(id, createdEntry);
+      }
+      
       return {
         'success': true,
-        'data': model.OtpEntry.fromJson(entry),
+        'data': createdEntry,
         'message': 'OTP entry created'
       };
     } catch (e) {
@@ -56,6 +134,35 @@ class OtpRepository {
         'success': false,
         'message': 'Failed to create OTP entry: $e'
       };
+    }
+  }
+
+  /// Sync a newly created OTP entry with backend
+  Future<void> _syncOtpInBackground(String localId, model.OtpEntry entry) async {
+    try {
+      final result = await _otpApiService.createOtpEntry(entry);
+      
+      if (result['success'] == true && result['data'] != null) {
+        final serverEntry = result['data'] as model.OtpEntry;
+        
+        // Update local record with server ID and synced status
+        await _db.otpDao.updateOtpEntry(localId, {
+          'serverId': serverEntry.id,
+          'syncStatus': 'synced',
+          'lastSyncedAt': DateTime.now().toIso8601String(),
+        });
+      } else {
+        // Mark as error if sync failed
+        await _db.otpDao.updateOtpEntry(localId, {
+          'syncStatus': 'error',
+        });
+      }
+    } catch (e) {
+      print('Background sync failed: $e');
+      // Mark as error
+      await _db.otpDao.updateOtpEntry(localId, {
+        'syncStatus': 'error',
+      });
     }
   }
 
@@ -130,10 +237,24 @@ class OtpRepository {
       // Fetch updated
       final updated = await _db.otpDao.getOtpEntryById(id);
       
+      if (updated != null) {
+        final updatedEntry = model.OtpEntry.fromJson(updated);
+        
+        // Sync with backend in BACKGROUND (non-blocking)
+        if (_connectivityService.isOnline) {
+          _syncOtpUpdateInBackground(id, updatedEntry);
+        }
+        
+        return {
+          'success': true,
+          'data': updatedEntry,
+          'message': 'OTP entry updated'
+        };
+      }
+      
       return {
-        'success': true,
-        'data': updated != null ? model.OtpEntry.fromJson(updated) : null,
-        'message': 'OTP entry updated'
+        'success': false,
+        'message': 'Failed to fetch updated entry'
       };
     } catch (e) {
       return {
@@ -143,10 +264,44 @@ class OtpRepository {
     }
   }
 
+  /// Sync an OTP update with backend
+  Future<void> _syncOtpUpdateInBackground(String localId, model.OtpEntry entry) async {
+    // If entry doesn't have server ID, we can't update it on server yet
+    if (entry.serverId == null) return;
+
+    try {
+      final result = await _otpApiService.updateOtpEntry(entry.serverId!, entry);
+      
+      if (result['success'] == true) {
+        // Update local record as synced
+        await _db.otpDao.updateOtpEntry(localId, {
+          'syncStatus': 'synced',
+          'lastSyncedAt': DateTime.now().toIso8601String(),
+        });
+      } else {
+        await _db.otpDao.updateOtpEntry(localId, {
+          'syncStatus': 'error',
+        });
+      }
+    } catch (e) {
+      print('Background update sync failed: $e');
+      await _db.otpDao.updateOtpEntry(localId, {
+        'syncStatus': 'error',
+      });
+    }
+  }
+
   /// Eliminar una entrada OTP (FAST - deleted locally)
   Future<Map<String, dynamic>> deleteOtpEntry(String id, {String? serverId}) async {
     try {
+      // Delete from local database first (FAST)
       await _db.otpDao.deleteOtpEntry(id);
+
+      // Sync with backend in BACKGROUND (non-blocking)
+      if (serverId != null && _connectivityService.isOnline) {
+        _syncOtpDeletionInBackground(serverId);
+      }
+
       return {
         'success': true,
         'message': 'OTP entry deleted'
@@ -156,6 +311,15 @@ class OtpRepository {
         'success': false,
         'message': 'Failed to delete OTP entry: $e'
       };
+    }
+  }
+
+  /// Sync an OTP deletion with backend
+  Future<void> _syncOtpDeletionInBackground(String serverId) async {
+    try {
+      await _otpApiService.deleteOtpEntry(serverId);
+    } catch (e) {
+      print('Background deletion sync failed: $e');
     }
   }
 
@@ -197,7 +361,14 @@ class OtpRepository {
 
   /// Force a manual sync with the backend
   Future<Map<String, dynamic>> forceSync() async {
-    return {'success': true, 'message': 'Sync is disabled'};
+    if (!_connectivityService.isOnline) {
+      return {'success': false, 'message': 'No internet connection'};
+    }
+    
+    await _syncFromServer();
+    // Also sync pending changes (not implemented fully here, but could iterate pending items)
+    
+    return {'success': true, 'message': 'Sync completed'};
   }
 
   /// Get sync status for an OTP entry
