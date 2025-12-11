@@ -49,14 +49,18 @@ class NotesRepository {
       
       if (result['success'] == true && result['data'] != null) {
         final serverNotes = result['data'] as List<models.Note>;
+        final allLocalNotes = await _db.notesDao.getAllNotes();
         
         for (final serverNote in serverNotes) {
           if (serverNote.id == null) continue;
           
-          // Check if exists locally
-          final existingLocal = await _db.notesDao.getNoteByServerId(serverNote.id!);
+          // Check if exists locally by serverId
+          final existingLocal = allLocalNotes.firstWhere(
+            (n) => n['serverId'] == serverNote.id,
+            orElse: () => {},
+          );
           
-          if (existingLocal != null) {
+          if (existingLocal.isNotEmpty) {
             // Update existing
             await _db.notesDao.updateNote(existingLocal['localId'], {
               'title': serverNote.title,
@@ -66,18 +70,35 @@ class NotesRepository {
               'lastSyncedAt': DateTime.now().toIso8601String(),
             });
           } else {
-            // Insert new from server
-            final localId = _uuid.v4();
-            await _db.notesDao.insertNote({
-              'localId': localId,
-              'title': serverNote.title,
-              'content': serverNote.content,
-              'createdAt': serverNote.createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
-              'updatedAt': serverNote.updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
-              'serverId': serverNote.id,
-              'syncStatus': 'synced',
-              'lastSyncedAt': DateTime.now().toIso8601String(),
-            });
+            // Check for pending match to avoid duplicates
+            final pendingMatch = allLocalNotes.firstWhere(
+              (n) => n['syncStatus'] == 'pending' && 
+                     n['title'] == serverNote.title && 
+                     n['content'] == serverNote.content,
+              orElse: () => {},
+            );
+
+            if (pendingMatch.isNotEmpty) {
+               // Found a pending note that matches content. Link it!
+               await _db.notesDao.updateNote(pendingMatch['localId'], {
+                 'serverId': serverNote.id,
+                 'syncStatus': 'synced',
+                 'lastSyncedAt': DateTime.now().toIso8601String(),
+               });
+            } else {
+              // Insert new from server
+              final localId = _uuid.v4();
+              await _db.notesDao.insertNote({
+                'localId': localId,
+                'title': serverNote.title,
+                'content': serverNote.content,
+                'createdAt': serverNote.createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+                'updatedAt': serverNote.updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+                'serverId': serverNote.id,
+                'syncStatus': 'synced',
+                'lastSyncedAt': DateTime.now().toIso8601String(),
+              });
+            }
           }
         }
       }

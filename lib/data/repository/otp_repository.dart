@@ -27,7 +27,10 @@ class OtpRepository {
       }
 
       final localEntries = await _db.otpDao.getAllOtpEntries();
-      final entries = localEntries.map((e) => model.OtpEntry.fromJson(e)).toList();
+      final entries = localEntries
+          .map((e) => model.OtpEntry.fromJson(e))
+          .where((e) => e.secret.isNotEmpty && (e.name.isNotEmpty || e.issuer.isNotEmpty))
+          .toList();
       return {
         'success': true,
         'data': entries,
@@ -54,18 +57,22 @@ class OtpRepository {
         final userEmail = await _secureStorageService.getValue('cached_email');
         if (userEmail == null) return;
 
+        final allLocalEntries = await _db.otpDao.getAllOtpEntries();
+
         for (final serverEntry in serverEntries) {
           if (serverEntry.id.isEmpty) continue;
           
           // Check if exists locally by serverId
-          final existingLocal = await _db.otpDao.getOtpEntryByServerId(serverEntry.id);
+          final existingLocal = allLocalEntries.firstWhere(
+            (e) => e['serverId'] == serverEntry.id,
+            orElse: () => {},
+          );
           
-          if (existingLocal != null) {
+          if (existingLocal.isNotEmpty) {
             // Update existing
-            await _db.otpDao.updateOtpEntry(existingLocal['id'], {
+            final updateData = {
               'name': serverEntry.name,
               'issuer': serverEntry.issuer,
-              'secret': serverEntry.secret,
               'digits': serverEntry.digits,
               'period': serverEntry.period,
               'algorithm': serverEntry.algorithm,
@@ -73,26 +80,49 @@ class OtpRepository {
               'updatedAt': DateTime.now().toIso8601String(),
               'syncStatus': 'synced',
               'lastSyncedAt': DateTime.now().toIso8601String(),
-            });
+            };
+
+            // Only update secret if server provides it and it's not empty
+            if (serverEntry.secret.isNotEmpty) {
+              updateData['secret'] = serverEntry.secret;
+            }
+
+            await _db.otpDao.updateOtpEntry(existingLocal['id'], updateData);
           } else {
-            // Insert new from server
-            final localId = _uuid.v4();
-            await _db.otpDao.insertOtpEntry({
-              'id': localId,
-              'name': serverEntry.name,
-              'issuer': serverEntry.issuer,
-              'secret': serverEntry.secret,
-              'digits': serverEntry.digits,
-              'period': serverEntry.period,
-              'algorithm': serverEntry.algorithm,
-              'type': serverEntry.type,
-              'userId': userEmail, // Use local email instead of server ID
-              'createdAt': serverEntry.createdAt.toIso8601String(),
-              'updatedAt': serverEntry.updatedAt.toIso8601String(),
-              'serverId': serverEntry.id,
-              'syncStatus': 'synced',
-              'lastSyncedAt': DateTime.now().toIso8601String(),
-            });
+            // Check for pending match
+            final pendingMatch = allLocalEntries.firstWhere(
+              (e) => e['syncStatus'] == 'pending' && 
+                     e['secret'] == serverEntry.secret,
+              orElse: () => {},
+            );
+
+            if (pendingMatch.isNotEmpty) {
+               // Found a pending entry that matches secret. Link it!
+               await _db.otpDao.updateOtpEntry(pendingMatch['id'], {
+                 'serverId': serverEntry.id,
+                 'syncStatus': 'synced',
+                 'lastSyncedAt': DateTime.now().toIso8601String(),
+               });
+            } else {
+              // Insert new from server
+              final localId = _uuid.v4();
+              await _db.otpDao.insertOtpEntry({
+                'id': localId,
+                'name': serverEntry.name,
+                'issuer': serverEntry.issuer,
+                'secret': serverEntry.secret,
+                'digits': serverEntry.digits,
+                'period': serverEntry.period,
+                'algorithm': serverEntry.algorithm,
+                'type': serverEntry.type,
+                'userId': userEmail, // Use local email instead of server ID
+                'createdAt': serverEntry.createdAt.toIso8601String(),
+                'updatedAt': serverEntry.updatedAt.toIso8601String(),
+                'serverId': serverEntry.id,
+                'syncStatus': 'synced',
+                'lastSyncedAt': DateTime.now().toIso8601String(),
+              });
+            }
           }
         }
       }

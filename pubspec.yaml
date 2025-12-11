@@ -31,6 +31,7 @@ dependencies:
   flutter_watch_os_connectivity: ^1.0.0
   i18n_extension: ^15.1.0
   qr_code_scanner: ^1.0.1
+  skeletonizer: ^2.1.1
 
 dev_dependencies:
   flutter_test:

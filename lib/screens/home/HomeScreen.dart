@@ -14,6 +14,8 @@ import 'package:thisjowi/screens/notes/EditNoteScreen.dart';
 import 'package:thisjowi/i18n/translations.dart';
 import 'package:thisjowi/i18n/translation_service.dart';
 import 'package:thisjowi/components/bottomNavigation.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -125,7 +127,31 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: const Color.fromRGBO(30, 30, 30, 1.0),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Add OTP'.tr(context), style: const TextStyle(color: AppColors.text)),
+        title: Row(
+          children: [
+            Text('Add OTP'.tr(context), style: const TextStyle(color: AppColors.text)),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.qr_code, color: AppColors.text),
+              tooltip: 'Import URI'.tr(context),
+              onPressed: () {
+                Navigator.pop(context);
+                _showImportDialog();
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.camera_alt, color: AppColors.text),
+              tooltip: 'Scan QR'.tr(context),
+              onPressed: () async {
+                Navigator.pop(context);
+                final result = await Navigator.pushNamed(context, '/otp/qrscan');
+                if (result == true && mounted) {
+                  bottomNavigationKey.currentState?.navigateToOtp();
+                }
+              },
+            ),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -190,6 +216,72 @@ class _HomeScreenState extends State<HomeScreen> {
       if (addResult['success'] == true) {
         ErrorSnackBar.showSuccess(context, 'OTP added'.tr(context));
         // Navegar a la pestaña de OTP usando la key global
+        if (mounted) {
+          bottomNavigationKey.currentState?.navigateToOtp();
+        }
+      } else {
+        ErrorSnackBar.show(context, addResult['message'] ?? 'Error');
+      }
+    }
+  }
+
+  Future<void> _showImportDialog() async {
+    final otpRepository = OtpRepository();
+    final uriController = TextEditingController();
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color.fromRGBO(30, 30, 30, 1.0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Import OTP URI'.tr(context), style: const TextStyle(color: AppColors.text)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Paste the otpauth:// URI from your authenticator app'.tr(context),
+                style: TextStyle(color: AppColors.text.withOpacity(0.7), fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              _buildOtpTextField(
+                controller: uriController,
+                label: 'OTP URI'.tr(context),
+                hint: 'otpauth://totp/...',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'.tr(context), style: TextStyle(color: AppColors.text.withOpacity(0.6))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Import'.tr(context)),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == true) {
+      final uri = uriController.text.trim();
+      
+      if (!uri.startsWith('otpauth://')) {
+        ErrorSnackBar.show(context, 'Invalid OTP URI'.tr(context));
+        return;
+      }
+      
+      final addResult = await otpRepository.addOtpFromUri(uri, '');
+      
+      if (addResult['success'] == true) {
+        ErrorSnackBar.showSuccess(context, 'OTP imported'.tr(context));
         if (mounted) {
           bottomNavigationKey.currentState?.navigateToOtp();
         }
@@ -445,39 +537,58 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Column(
           children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Row(
+                children: [
+                  const Image(
+                    image: NetworkImage("https://pub-9030d6e053cc40b380e0f63662daf8ed.r2.dev/logo-removebg-preview_resized.png"),
+                    height: 40,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'THISJOWI'.i18n,
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // Search bar
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Padding(
-                padding: const EdgeInsets.only(top: 50.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.text.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(25),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.text.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: TextField(
+                  style: const TextStyle(color: AppColors.text, fontSize: 16),
+                  decoration: InputDecoration(
+                    labelText: 'Search'.i18n,
+                    prefixIcon: Icon(Icons.search, color: AppColors.text.withOpacity(0.6), size: 20),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.close, color: AppColors.text.withOpacity(0.6), size: 20),
+                            onPressed: () {
+                              setState(() => _searchQuery = '');
+                              _loadData();
+                            },
+                          )
+                        : null,
+                    labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6), fontSize: 16),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
-                  child: TextField(
-                    style: const TextStyle(color: AppColors.text, fontSize: 16),
-                    decoration: InputDecoration(
-                      labelText: 'Search'.i18n,
-                      prefixIcon: Icon(Icons.search, color: AppColors.text.withOpacity(0.6), size: 20),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.close, color: AppColors.text.withOpacity(0.6), size: 20),
-                              onPressed: () {
-                                setState(() => _searchQuery = '');
-                                _loadData();
-                              },
-                            )
-                          : null,
-                      labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6), fontSize: 16),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                    onChanged: (value) {
-                      setState(() => _searchQuery = value);
-                      _loadData();
-                    },
-                  ),
+                  onChanged: (value) {
+                    setState(() => _searchQuery = value);
+                    _loadData();
+                  },
                 ),
               ),
             ),

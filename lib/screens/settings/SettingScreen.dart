@@ -566,7 +566,7 @@ class _SettingScreenState extends State<SettingScreen> {
           _buildSettingItem(
             icon: Icons.info_outline,
             title: 'Application Version'.i18n,
-            subtitle: '2.1.0',
+            subtitle: '3.0.0',
           ),
           _buildSettingItem(
             icon: Icons.help_outline,

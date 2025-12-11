@@ -5,10 +5,16 @@ import 'package:thisjowi/core/appColors.dart';
 import 'package:thisjowi/data/models/otp_entry.dart';
 import 'package:thisjowi/data/repository/otp_repository.dart';
 import 'package:thisjowi/i18n/translation_service.dart';
+import 'package:thisjowi/i18n/translations.dart';
 import 'package:thisjowi/services/otp_service.dart';
 import 'package:thisjowi/components/error_snack_bar.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
+import 'package:thisjowi/components/button.dart';
+import 'package:thisjowi/screens/password/EditPasswordScreen.dart';
+import 'package:thisjowi/screens/notes/EditNoteScreen.dart';
+import 'package:thisjowi/data/repository/passwords_repository.dart';
+import 'package:thisjowi/data/repository/notes_repository.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key});
@@ -87,6 +93,30 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
+  Future<void> _createPassword() async {
+    final repository = PasswordsRepository();
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditPasswordScreen(
+          passwordsRepository: repository,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createNote() async {
+    final repository = NotesRepository();
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditNoteScreen(
+          notesRepository: repository,
+        ),
+      ),
+    );
+  }
+
   Future<void> _showAddDialog() async {
     final nameController = TextEditingController();
     final issuerController = TextEditingController();
@@ -97,7 +127,29 @@ class _OtpScreenState extends State<OtpScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: const Color.fromRGBO(30, 30, 30, 1.0),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Add OTP'.tr(context), style: const TextStyle(color: AppColors.text)),
+        title: Row(
+          children: [
+            Text('Add OTP'.tr(context), style: const TextStyle(color: AppColors.text)),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.qr_code, color: AppColors.text),
+              tooltip: 'Import URI'.tr(context),
+              onPressed: () {
+                Navigator.pop(context);
+                _showImportDialog();
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.camera_alt, color: AppColors.text),
+              tooltip: 'Scan QR'.tr(context),
+              onPressed: () async {
+                Navigator.pop(context);
+                final result = await Navigator.pushNamed(context, '/otp/qrscan');
+                if (result == true) _loadEntries();
+              },
+            ),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -303,92 +355,93 @@ class _OtpScreenState extends State<OtpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  const Icon(Icons.security, color: AppColors.primary, size: 28),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Authenticator'.tr(context),
-                    style: const TextStyle(
-                      color: AppColors.text,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.security, color: AppColors.primary, size: 28),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Authenticator'.tr(context),
+                      style: const TextStyle(
+                        color: AppColors.text,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: _showImportDialog,
-                    icon: const Icon(Icons.qr_code, color: AppColors.text),
-                    tooltip: 'Import URI'.tr(context),
-                  ),
-                  IconButton(
-                    onPressed: _showAddDialog,
-                    icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                    tooltip: 'Add OTP'.tr(context),
-                  ),
-                  if (!(kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux))
-                    IconButton(
-                      onPressed: () async {
-                        final result = await Navigator.pushNamed(context, '/otp/qrscan');
-                        if (result == true) _loadEntries();
-                      },
-                      icon: const Icon(Icons.camera_alt, color: AppColors.primary),
-                      tooltip: 'Scan QR'.tr(context),
-                    ),
-                ],
-              ),
-            ),
-            
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                onChanged: (value) {
-                  _searchQuery = value;
-                  _loadEntries();
-                },
-                style: const TextStyle(color: AppColors.text),
-                decoration: InputDecoration(
-                  hintText: 'Search...'.tr(context),
-                  hintStyle: TextStyle(color: AppColors.text.withOpacity(0.5)),
-                  prefixIcon: Icon(Icons.search, color: AppColors.text.withOpacity(0.5)),
-                  filled: true,
-                  fillColor: AppColors.text.withOpacity(0.05),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ],
                 ),
               ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // List
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                  : _entries.isEmpty
-                      ? _buildEmptyState()
-                      : RefreshIndicator(
-                          onRefresh: _loadEntries,
-                          color: AppColors.primary,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            itemCount: _entries.length,
-                            itemBuilder: (context, index) => _buildOtpCard(_entries[index]),
+
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.text.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: TextField(
+                    onChanged: (value) {
+                      _searchQuery = value;
+                      _loadEntries();
+                    },
+                    style: const TextStyle(color: AppColors.text, fontSize: 16),
+                    decoration: InputDecoration(
+                      labelText: 'Search'.i18n,
+                      prefixIcon: Icon(Icons.search, color: AppColors.text.withOpacity(0.6), size: 20),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.close, color: AppColors.text.withOpacity(0.6), size: 20),
+                              onPressed: () {
+                                setState(() => _searchQuery = '');
+                                _loadEntries();
+                              },
+                            )
+                          : null,
+                      labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6), fontSize: 16),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                ),
+              ),
+              
+              // List
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                    : _entries.isEmpty
+                        ? _buildEmptyState()
+                        : RefreshIndicator(
+                            onRefresh: _loadEntries,
+                            color: AppColors.primary,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
+                              itemCount: _entries.length,
+                              itemBuilder: (context, index) => _buildOtpCard(_entries[index]),
+                            ),
                           ),
-                        ),
+              ),
+            ],
+          ),
+          
+          // FAB
+          Positioned(
+            bottom: 16.0,
+            right: 16.0,
+            child: ExpandableActionButton(
+              onCreatePassword: _createPassword,
+              onCreateNote: _createNote,
+              onCreateOtp: _showAddDialog,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

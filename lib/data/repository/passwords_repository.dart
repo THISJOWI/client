@@ -50,6 +50,7 @@ class PasswordsRepository {
       
       if (result['success'] == true && result['data'] != null) {
         final serverPasswords = result['data'] as List;
+        final allLocalPasswords = await _db.passwordsDao.getAllPasswords();
         
         for (final item in serverPasswords) {
           // The server returns JSON with 'id' as the server ID.
@@ -58,9 +59,12 @@ class PasswordsRepository {
           if (serverId == null || serverId.isEmpty) continue;
           
           // Check if exists locally by serverId
-          final existingLocal = await _db.passwordsDao.getPasswordByServerId(serverId);
+          final existingLocal = allLocalPasswords.firstWhere(
+            (p) => p['serverId'] == serverId,
+            orElse: () => {},
+          );
           
-          if (existingLocal != null) {
+          if (existingLocal.isNotEmpty) {
             // Update existing
             await _db.passwordsDao.updatePassword(existingLocal['id'], {
               'title': item['title'] ?? '',
@@ -73,22 +77,39 @@ class PasswordsRepository {
               'lastSyncedAt': DateTime.now().toIso8601String(),
             });
           } else {
-            // Insert new from server
-            final localId = _uuid.v4();
-            await _db.passwordsDao.insertPassword({
-              'id': localId,
-              'title': item['title'] ?? '',
-              'username': item['username'] ?? '',
-              'password': item['password'] ?? '',
-              'website': item['website'] ?? '',
-              'notes': item['notes'] ?? '',
-              'userId': item['userId']?.toString() ?? '',
-              'createdAt': item['createdAt'] ?? DateTime.now().toIso8601String(),
-              'updatedAt': item['updatedAt'] ?? DateTime.now().toIso8601String(),
-              'serverId': serverId,
-              'syncStatus': 'synced',
-              'lastSyncedAt': DateTime.now().toIso8601String(),
-            });
+            // Check for pending match
+            final pendingMatch = allLocalPasswords.firstWhere(
+              (p) => p['syncStatus'] == 'pending' && 
+                     p['title'] == (item['title'] ?? '') && 
+                     p['username'] == (item['username'] ?? ''),
+              orElse: () => {},
+            );
+
+            if (pendingMatch.isNotEmpty) {
+               // Found a pending password that matches. Link it!
+               await _db.passwordsDao.updatePassword(pendingMatch['id'], {
+                 'serverId': serverId,
+                 'syncStatus': 'synced',
+                 'lastSyncedAt': DateTime.now().toIso8601String(),
+               });
+            } else {
+              // Insert new from server
+              final localId = _uuid.v4();
+              await _db.passwordsDao.insertPassword({
+                'id': localId,
+                'title': item['title'] ?? '',
+                'username': item['username'] ?? '',
+                'password': item['password'] ?? '',
+                'website': item['website'] ?? '',
+                'notes': item['notes'] ?? '',
+                'userId': item['userId']?.toString() ?? '',
+                'createdAt': item['createdAt'] ?? DateTime.now().toIso8601String(),
+                'updatedAt': item['updatedAt'] ?? DateTime.now().toIso8601String(),
+                'serverId': serverId,
+                'syncStatus': 'synced',
+                'lastSyncedAt': DateTime.now().toIso8601String(),
+              });
+            }
           }
         }
       }
