@@ -113,4 +113,11 @@ class SecureStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(key);
   }
+
+  /// Clear cached credentials
+  Future<void> clearCachedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('cached_token');
+    await prefs.remove('cached_email');
+  }
 }

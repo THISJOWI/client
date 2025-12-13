@@ -259,11 +259,16 @@ class _SettingScreenState extends State<SettingScreen> {
       content: 'Are you sure you want to delete your account? This action cannot be undone.'.i18n,
       onConfirm: () async {
         try {
-          // TODO: Implement account deletion in AuthService
-          await _authService.deleteAccount();
+          final result = await _authRepository!.deleteAccount();
+          
           if (!mounted) return;
-          Navigator.pushReplacementNamed(context, '/login');
-          ErrorSnackBar.showSuccess(context, 'Account deleted successfully'.i18n);
+          
+          if (result['success'] == true) {
+            Navigator.pushReplacementNamed(context, '/login');
+            ErrorSnackBar.showSuccess(context, 'Account deleted successfully'.i18n);
+          } else {
+            ErrorSnackBar.show(context, result['message'] ?? 'Error deleting account'.i18n);
+          }
         } catch (e) {
           if (!mounted) return;
           ErrorSnackBar.show(context, '${'Error deleting account'.i18n}: $e');

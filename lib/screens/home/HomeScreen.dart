@@ -998,7 +998,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Add your first password or note'.i18n,
+            'Add your first password or note'.tr(context),
             style: TextStyle(
               color: AppColors.text.withOpacity(0.3),
               fontSize: 14,

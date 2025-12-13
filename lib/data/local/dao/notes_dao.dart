@@ -215,4 +215,8 @@ class NotesDao extends DatabaseAccessor<AppDatabase> with _$NotesDaoMixin {
       'serverId': note.serverId,
     }).toList();
   }
+
+  Future<void> deleteNotesByUser(String email) async {
+    await (delete(notes)..where((n) => n.userEmail.equals(email))).go();
+  }
 }

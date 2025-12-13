@@ -609,11 +609,15 @@ extension Localization on String {
       } +
       {
         "en": "Access your data anytime, anywhere",
-        "es": "Accede a tus datos en cualquier momento y lugar",
+        "es": "Accede en cualquier momento y lugar",
       } +
       {
         "en": "Cloud Sync",
         "es": "Sincronización en la nube",
+      } +
+      {
+        "en": "Add your first password or note",
+        "es": "Agregar tu primera contraseña o nota",
       } +
       {
         "en": "Keep your data synced across all devices",

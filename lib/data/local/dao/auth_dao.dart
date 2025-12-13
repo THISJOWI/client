@@ -26,4 +26,8 @@ class AuthDao extends DatabaseAccessor<AppDatabase> with _$AuthDaoMixin {
       UsersCompanion(token: Value(token)),
     );
   }
+
+  Future<void> deleteUser(String email) async {
+    await (delete(users)..where((u) => u.email.equals(email))).go();
+  }
 }

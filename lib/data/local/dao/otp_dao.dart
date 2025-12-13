@@ -235,4 +235,8 @@ class OtpDao extends DatabaseAccessor<AppDatabase> with _$OtpDaoMixin {
       'serverId': otp.serverId,
     }).toList();
   }
+
+  Future<void> deleteOtpEntriesByUser(String email) async {
+    await (delete(otpEntries)..where((o) => o.userId.equals(email))).go();
+  }
 }

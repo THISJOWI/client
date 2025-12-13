@@ -1,4 +1,5 @@
 import 'package:crypto/crypto.dart';
+import 'package:i18n_extension/default.i18n.dart';
 import 'dart:convert';
 import '../../services/auth_service.dart';
 import '../local/app_database.dart';
@@ -103,7 +104,7 @@ class AuthRepository {
     if (existingUser != null) {
       return {
         'success': false,
-        'message': 'This user already exists locally. Please sign in.',
+        'message': 'This user already exists. Please sign in.'.i18n,
       };
     }
 
@@ -317,6 +318,53 @@ class AuthRepository {
         print('❌ Password change sync failed, queued: $e');
       }
     });
+  }
+
+  /// Delete account (Offline-first)
+  Future<Map<String, dynamic>> deleteAccount() async {
+    final isOnline = _connectivityService.isOnline;
+    final email = await getCachedEmail();
+    
+    if (email == null) {
+      return {'success': false, 'message': 'No user logged in'};
+    }
+
+    if (!isOnline) {
+      return {
+        'success': false, 
+        'message': 'You must be online to delete your account.'
+      };
+    }
+
+    try {
+      final result = await _authService.deleteAccount();
+      
+      if (result['success'] == true) {
+        print('✅ Account deleted on server. Cleaning up local data for: $email');
+        
+        // Delete user data first
+        await _db.notesDao.deleteNotesByUser(email);
+        await _db.passwordsDao.deletePasswordsByUser(email);
+        await _db.otpDao.deleteOtpEntriesByUser(email);
+        
+        // Delete user record
+        await _db.authDao.deleteUser(email);
+        print('✅ Local user data deleted');
+        
+        // Clear cached credentials
+        await _secureStorageService.clearCachedCredentials();
+        
+        // Clear shared prefs (via AuthService logout)
+        await _authService.logout();
+      } else {
+        print('❌ Server failed to delete account: ${result['message']}');
+      }
+      
+      return result;
+    } catch (e) {
+      print('❌ Exception during account deletion: $e');
+      return {'success': false, 'message': 'Failed to delete account: $e'};
+    }
   }
 
   /// Queue password change for later sync

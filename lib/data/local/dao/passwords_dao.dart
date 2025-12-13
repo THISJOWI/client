@@ -233,4 +233,8 @@ class PasswordsDao extends DatabaseAccessor<AppDatabase> with _$PasswordsDaoMixi
       'serverId': pwd.serverId,
     }).toList();
   }
+
+  Future<void> deletePasswordsByUser(String email) async {
+    await (delete(passwords)..where((p) => p.userId.equals(email))).go();
+  }
 }
