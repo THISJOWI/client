@@ -6,7 +6,7 @@ part 'passwords_dao.g.dart';
 
 @DriftAccessor(tables: [Passwords])
 class PasswordsDao extends DatabaseAccessor<AppDatabase> with _$PasswordsDaoMixin {
-  PasswordsDao(AppDatabase db) : super(db);
+  PasswordsDao(super.db);
 
   Future<String?> _getCurrentUserEmail() async {
     final secureStorage = SecureStorageService();

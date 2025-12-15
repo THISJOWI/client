@@ -14,10 +14,8 @@ import 'package:thisjowi/screens/notes/EditNoteScreen.dart';
 import 'package:thisjowi/i18n/translations.dart';
 import 'package:thisjowi/i18n/translation_service.dart';
 import 'package:thisjowi/components/bottomNavigation.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'dart:io' show Platform;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -161,10 +159,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 _showImportDialog();
               },
             ),
-            if (!(kIsWeb ||
-                Platform.isWindows ||
-                Platform.isMacOS ||
-                Platform.isLinux))
+            if (kIsWeb || 
+                defaultTargetPlatform == TargetPlatform.android || 
+                defaultTargetPlatform == TargetPlatform.iOS)
               IconButton(
                 icon: const Icon(Icons.camera_alt, color: AppColors.text),
                 tooltip: 'Scan QR'.tr(context),
@@ -361,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: AppColors.background,
             title: Text('Delete password?'.i18n,
                 style: TextStyle(color: AppColors.text)),
-            content: Text('Are you sure you want to delete "${entry.title}"?',
+            content: Text('${'Are you sure you want to delete'.i18n} "${entry.title}"?',
                 style: TextStyle(color: AppColors.text)),
             actions: [
               TextButton(
@@ -505,7 +502,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 16),
                     ],
                     if (entry.username.isNotEmpty) ...[
-                      Text('User',
+                      Text('User'.i18n,
                           style: TextStyle(
                               color: AppColors.text.withOpacity(0.6),
                               fontSize: 13,

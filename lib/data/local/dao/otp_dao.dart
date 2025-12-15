@@ -6,7 +6,7 @@ part 'otp_dao.g.dart';
 
 @DriftAccessor(tables: [OtpEntries])
 class OtpDao extends DatabaseAccessor<AppDatabase> with _$OtpDaoMixin {
-  OtpDao(AppDatabase db) : super(db);
+  OtpDao(super.db);
 
   Future<String?> _getCurrentUserEmail() async {
     final secureStorage = SecureStorageService();

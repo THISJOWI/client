@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:i18n_extension/i18n_extension.dart';
 import 'package:thisjowi/core/appColors.dart';
 import 'package:thisjowi/core/api_config.dart';
 import 'package:thisjowi/core/env_loader.dart';
@@ -58,6 +59,7 @@ class MainApp extends StatelessWidget {
         // Por defecto, usar inglés
         return const Locale('en');
       },
+      builder: (context, child) => I18n(child: child!),
       
       theme: ThemeData(
         scaffoldBackgroundColor: AppColors.background,

@@ -5,7 +5,7 @@ part 'auth_dao.g.dart';
 
 @DriftAccessor(tables: [Users])
 class AuthDao extends DatabaseAccessor<AppDatabase> with _$AuthDaoMixin {
-  AuthDao(AppDatabase db) : super(db);
+  AuthDao(super.db);
 
   Future<User?> getUserByEmail(String email) async {
     return (select(users)..where((u) => u.email.equals(email))).getSingleOrNull();

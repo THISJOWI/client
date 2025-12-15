@@ -66,6 +66,14 @@ extension Localization on String {
 
       // ==================== AUTH ====================
       {
+        "en": "Welcome Back",
+        "es": "Bienvenido de nuevo",
+      } +
+      {
+        "en": "Sign in to continue",
+        "es": "Inicia sesión para continuar",
+      } +
+      {
         "en": "Email",
         "es": "Correo electrónico",
       } +
@@ -166,6 +174,10 @@ extension Localization on String {
       {
         "en": "User copied",
         "es": "Usuario copiado",
+      } +
+      {
+        "en": "User",
+        "es": "Usuario",
       } +
       {
         "en": "Title",
@@ -650,5 +662,7 @@ extension Localization on String {
 
   String get i18n => localize(this, _t);
   
+  String i18nFor(String locale) => i18n;
+
   String fill(List<Object> params) => localizeFill(this, params);
 }

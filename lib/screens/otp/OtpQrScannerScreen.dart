@@ -1,6 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:ai_barcode_scanner/ai_barcode_scanner.dart';
 import 'package:thisjowi/data/repository/otp_repository.dart';
 import 'package:thisjowi/components/error_snack_bar.dart';
 
@@ -13,40 +12,21 @@ class OtpQrScannerScreen extends StatefulWidget {
 
 class _OtpQrScannerScreenState extends State<OtpQrScannerScreen> {
   late final OtpRepository _otpRepository;
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
   bool scanned = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize repository (local-first)
     _otpRepository = OtpRepository();
   }
 
-  @override
-  void dispose() {
-    controller?.dispose();
-    super.dispose();
-  }
-
-  @override
-  void reassemble() {
-    super.reassemble();
-    if (Platform.isAndroid) {
-      controller!.pauseCamera();
-    }
-    controller!.resumeCamera();
-  }
-
-  void _onQRViewCreated(QRViewController ctrl) {
-    controller = ctrl;
-    controller?.scannedDataStream.listen((scanData) async {
-      if (scanned) return;
-      scanned = true;
-      final code = scanData.code ?? '';
-      if (code.startsWith('otpauth://')) {
-        final result = await _otpRepository.addOtpFromUri(code, '');
+  Future<void> _processCode(String code) async {
+    if (scanned) return;
+    scanned = true;
+    
+    if (code.startsWith('otpauth://')) {
+      final result = await _otpRepository.addOtpFromUri(code, '');
+      if (mounted) {
         if (result['success'] == true) {
           ErrorSnackBar.showSuccess(context, 'OTP added');
           Navigator.pop(context, true);
@@ -54,28 +34,33 @@ class _OtpQrScannerScreenState extends State<OtpQrScannerScreen> {
           ErrorSnackBar.show(context, result['message'] ?? 'Error');
           Navigator.pop(context, false);
         }
-      } else {
+      }
+    } else {
+      if (mounted) {
         ErrorSnackBar.show(context, 'Invalid QR');
         Navigator.pop(context, false);
       }
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Scan OTP QR')),
-      body: QRView(
-        key: qrKey,
-        onQRViewCreated: _onQRViewCreated,
-        overlay: QrScannerOverlayShape(
-          borderColor: Colors.blue,
-          borderRadius: 10,
-          borderLength: 30,
-          borderWidth: 10,
-          cutOutSize: 250,
-        ),
+    return AiBarcodeScanner(
+      onDetect: (BarcodeCapture capture) {
+        final List<Barcode> barcodes = capture.barcodes;
+        for (final barcode in barcodes) {
+          if (barcode.rawValue != null) {
+            _processCode(barcode.rawValue!);
+            return;
+          }
+        }
+      },
+      controller: MobileScannerController(
+        detectionSpeed: DetectionSpeed.noDuplicates,
       ),
+      onDispose: () {
+        debugPrint("Barcode scanner disposed!");
+      },
     );
   }
 }

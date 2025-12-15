@@ -17,6 +17,8 @@ class BiometricService {
       return await _localAuth.isDeviceSupported();
     } on PlatformException {
       return false;
+    } on MissingPluginException {
+      return false;
     }
   }
 
@@ -26,6 +28,8 @@ class BiometricService {
       return await _localAuth.canCheckBiometrics;
     } on PlatformException {
       return false;
+    } on MissingPluginException {
+      return false;
     }
   }
 
@@ -34,6 +38,8 @@ class BiometricService {
     try {
       return await _localAuth.getAvailableBiometrics();
     } on PlatformException {
+      return [];
+    } on MissingPluginException {
       return [];
     }
   }
@@ -76,6 +82,8 @@ class BiometricService {
       );
     } on PlatformException catch (e) {
       print('Biometric authentication error: ${e.message}');
+      return false;
+    } on MissingPluginException {
       return false;
     }
   }

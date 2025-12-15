@@ -6,7 +6,7 @@ part 'notes_dao.g.dart';
 
 @DriftAccessor(tables: [Notes])
 class NotesDao extends DatabaseAccessor<AppDatabase> with _$NotesDaoMixin {
-  NotesDao(AppDatabase db) : super(db);
+  NotesDao(super.db);
 
   Future<String?> _getCurrentUserEmail() async {
     final secureStorage = SecureStorageService();

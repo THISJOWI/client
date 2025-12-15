@@ -8,6 +8,7 @@ import 'package:thisjowi/data/local/secure_storage_service.dart';
 import 'package:thisjowi/components/bottomNavigation.dart';
 import 'package:thisjowi/components/error_snack_bar.dart';
 import 'package:thisjowi/i18n/translations.dart';
+import 'package:thisjowi/i18n/translation_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     
     final authenticated = await _biometricService.authenticate(
-      localizedReason: 'Authenticate to access ThisJowi'.i18n,
+      localizedReason: 'Authenticate to access ThisJowi'.tr(context),
     );
     
     if (authenticated && mounted) {
@@ -65,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } else if (mounted) {
       setState(() => _isLoading = false);
-      ErrorSnackBar.show(context, 'Authentication failed'.i18n);
+      ErrorSnackBar.show(context, 'Authentication failed'.tr(context));
     }
   }
 
@@ -90,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      ErrorSnackBar.show(context, 'Please complete email and password'.i18n);
+      ErrorSnackBar.show(context, 'Please complete email and password'.tr(context));
       return;
     }
 
@@ -105,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (result['success'] == true) {
       // Show message if offline login
       if (result['offline'] == true && mounted) {
-        ErrorSnackBar.showSuccess(context, 'Logged in offline mode'.i18n);
+        ErrorSnackBar.showSuccess(context, 'Logged in offline mode'.tr(context));
       }
       
       // Navigate to main screen replacing the stack
@@ -115,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (_) => const MyBottomNavigation()),
       );
     } else {
-      ErrorSnackBar.show(context, result['message'] ?? 'Login failed'.i18n);
+      ErrorSnackBar.show(context, result['message'] ?? 'Login failed'.tr(context));
     }
   }
 
@@ -171,10 +172,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   
                   // Welcome Text
                   Text(
-                    "Welcome Back".i18n,
+                    "Welcome Back".tr(context),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 32,
+                      fontSize: 30,
                       color: AppColors.text,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.2,
@@ -182,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Sign in to continue".i18n,
+                    "Sign in to continue".tr(context),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -215,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
                             decoration: InputDecoration(
                               prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
-                              labelText: "Email".i18n,
+                              labelText: "Email".tr(context),
                               labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6)),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -252,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   });
                                 },
                               ),
-                              labelText: "Password".i18n,
+                              labelText: "Password".tr(context),
                               labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6)),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -292,7 +293,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     )
                                   : Text(
-                                      "Sign In".i18n,
+                                      "Sign In".tr(context),
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -314,7 +315,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         children: [
                           Text(
-                            'or'.i18n,
+                            'or'.tr(context),
                             style: TextStyle(
                               color: AppColors.text.withOpacity(0.5),
                               fontSize: 14,
@@ -359,7 +360,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        "Don't have an account? ".i18n,
+                        "Don't have an account? ".tr(context),
                         style: TextStyle(color: AppColors.text.withOpacity(0.7)),
                       ),
                       TextButton(
@@ -367,7 +368,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Navigator.pushNamed(context, '/register');
                         },
                         child: Text(
-                          "Sign Up".i18n,
+                          "Sign Up".tr(context),
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.bold,

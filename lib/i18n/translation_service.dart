@@ -1,6 +1,7 @@
 
 
 import 'package:flutter/material.dart';
+import 'package:thisjowi/i18n/translations.dart';
 
 /// Servicio de traducción más flexible que permite traducciones dinámicas
 class TranslationService {
@@ -68,8 +69,8 @@ class TranslationService {
       return _autoTranslations[text]?[locale] ?? text;
     }
     
-    // Si no se encuentra, devuelve el texto original
-    return text;
+    // Si no se encuentra, intenta usar i18n_extension
+    return text.i18nFor(locale);
   }
 
   /// Limpia todas las traducciones dinámicas

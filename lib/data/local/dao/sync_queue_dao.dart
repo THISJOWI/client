@@ -5,7 +5,7 @@ part 'sync_queue_dao.g.dart';
 
 @DriftAccessor(tables: [SyncQueue])
 class SyncQueueDao extends DatabaseAccessor<AppDatabase> with _$SyncQueueDaoMixin {
-  SyncQueueDao(AppDatabase db) : super(db);
+  SyncQueueDao(super.db);
 
   Future<void> queueItem(String entityType, String entityId, String action, String data) async {
     await into(syncQueue).insert(SyncQueueCompanion.insert(
