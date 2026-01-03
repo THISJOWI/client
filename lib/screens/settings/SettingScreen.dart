@@ -754,7 +754,9 @@ class _SettingScreenState extends State<SettingScreen> {
       body: Stack(
         children: [
           SafeArea(
-            child: Column(
+            bottom: false,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 100),
               children: [
                 // Header
                 Padding(
@@ -775,10 +777,7 @@ class _SettingScreenState extends State<SettingScreen> {
                     ],
                   ),
                 ),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    children: [
+                const SizedBox(height: 12),
 
                       // Profile Section
                       Padding(
@@ -905,9 +904,6 @@ class _SettingScreenState extends State<SettingScreen> {
                       const SizedBox(height: 24, width: 20,),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

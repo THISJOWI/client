@@ -437,6 +437,10 @@ class AuthRepository {
         await _db.passwordsDao.deletePasswordsByUser(email);
         await _db.otpDao.deleteOtpEntriesByUser(email);
         
+        // Clear sync queue for this user
+        await _db.syncQueueDao.removeItem('registration', email);
+        await _db.syncQueueDao.removeItem('password_change', email);
+        
         // Delete user record
         final deletedCount = await _db.authDao.deleteUser(email);
         print('✅ Local user data deleted. Users removed: $deletedCount');

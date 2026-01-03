@@ -30,11 +30,11 @@ dependencies:
   crypto: ^3.0.6
   flutter_watch_os_connectivity: ^1.0.0
   i18n_extension: ^15.1.0
-  ai_barcode_scanner: ^7.1.0
   skeletonizer: ^2.1.1
   encrypt: ^5.0.3
   flutter_map: ^6.0.0
   latlong2: ^0.9.0
+  mobile_scanner: ^7.1.4
 
 dev_dependencies:
   flutter_test:

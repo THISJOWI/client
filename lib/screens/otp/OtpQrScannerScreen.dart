@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ai_barcode_scanner/ai_barcode_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:thisjowi/data/repository/otp_repository.dart';
 import 'package:thisjowi/components/error_snack_bar.dart';
 
@@ -12,6 +12,9 @@ class OtpQrScannerScreen extends StatefulWidget {
 
 class _OtpQrScannerScreenState extends State<OtpQrScannerScreen> {
   late final OtpRepository _otpRepository;
+  final MobileScannerController _controller = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
   bool scanned = false;
 
   @override
@@ -20,9 +23,17 @@ class _OtpQrScannerScreenState extends State<OtpQrScannerScreen> {
     _otpRepository = OtpRepository();
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   Future<void> _processCode(String code) async {
     if (scanned) return;
-    scanned = true;
+    setState(() {
+      scanned = true;
+    });
     
     if (code.startsWith('otpauth://')) {
       final result = await _otpRepository.addOtpFromUri(code, '');
@@ -45,22 +56,76 @@ class _OtpQrScannerScreenState extends State<OtpQrScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AiBarcodeScanner(
-      onDetect: (BarcodeCapture capture) {
-        final List<Barcode> barcodes = capture.barcodes;
-        for (final barcode in barcodes) {
-          if (barcode.rawValue != null) {
-            _processCode(barcode.rawValue!);
-            return;
-          }
-        }
-      },
-      controller: MobileScannerController(
-        detectionSpeed: DetectionSpeed.noDuplicates,
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: _controller,
+            onDetect: (BarcodeCapture capture) {
+              final List<Barcode> barcodes = capture.barcodes;
+              for (final barcode in barcodes) {
+                if (barcode.rawValue != null) {
+                  _processCode(barcode.rawValue!);
+                  return;
+                }
+              }
+            },
+            errorBuilder: (context, error) {
+              return Center(
+                child: Text(
+                  'Error: ${error.errorCode}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              );
+            },
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      IconButton(
+                        icon: ValueListenableBuilder(
+                          valueListenable: _controller,
+                          builder: (context, state, child) {
+                            switch (state.torchState) {
+                              case TorchState.off:
+                                return const Icon(Icons.flash_off, color: Colors.grey);
+                              case TorchState.on:
+                                return const Icon(Icons.flash_on, color: Colors.yellow);
+                              default:
+                                return const Icon(Icons.flash_off, color: Colors.grey);
+                            }
+                          },
+                        ),
+                        onPressed: () => _controller.toggleTorch(),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                const Text(
+                  "Scan QR Code",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 50),
+              ],
+            ),
+          ),
+        ],
       ),
-      onDispose: () {
-        debugPrint("Barcode scanner disposed!");
-      },
     );
   }
 }
