@@ -103,6 +103,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> register(
     String email, 
     String password, {
+    String? fullName,
     String? country,
     String? accountType,
     String? hostingMode,
@@ -143,6 +144,7 @@ class AuthRepository {
     _syncRegistrationInBackground(
       email, 
       password,
+      fullName: fullName,
       country: country,
       accountType: accountType,
       hostingMode: hostingMode,
@@ -195,6 +197,7 @@ class AuthRepository {
   void _syncRegistrationInBackground(
     String email, 
     String password, {
+    String? fullName,
     String? country,
     String? accountType,
     String? hostingMode,
@@ -209,6 +212,7 @@ class AuthRepository {
         await _queueRegistration(
           email, 
           password,
+          fullName: fullName,
           country: country,
           accountType: accountType,
           hostingMode: hostingMode,
@@ -222,6 +226,7 @@ class AuthRepository {
         final result = await _authService.register(
           email, 
           password,
+          fullName: fullName,
           country: country,
           accountType: accountType,
           hostingMode: hostingMode,
@@ -242,6 +247,7 @@ class AuthRepository {
           await _queueRegistration(
             email, 
             password,
+            fullName: fullName,
             country: country,
             accountType: accountType,
             hostingMode: hostingMode,
@@ -523,6 +529,7 @@ class AuthRepository {
   Future<void> _queueRegistration(
     String email, 
     String password, {
+    String? fullName,
     String? country,
     String? accountType,
     String? hostingMode,
@@ -532,6 +539,7 @@ class AuthRepository {
       'email': email,
       'password': password,
     };
+    if (fullName != null) data['fullName'] = fullName;
     if (country != null) data['country'] = country;
     if (accountType != null) data['accountType'] = accountType;
     if (hostingMode != null) data['hostingMode'] = hostingMode;

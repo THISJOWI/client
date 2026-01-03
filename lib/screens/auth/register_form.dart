@@ -27,10 +27,12 @@ class RegisterForm extends StatefulWidget {
 }
 
 class _RegisterFormState extends State<RegisterForm> {
+  final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   late final TextEditingController _countryController;
   final TextEditingController _birthdateController = TextEditingController();
+  final FocusNode _emailFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
   final FocusNode _countryFocusNode = FocusNode();
   AuthRepository? _authRepository;
@@ -55,10 +57,12 @@ class _RegisterFormState extends State<RegisterForm> {
 
   @override
   void dispose() {
+    _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _countryController.dispose();
     _birthdateController.dispose();
+    _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
     _countryFocusNode.dispose();
     super.dispose();
@@ -103,12 +107,13 @@ class _RegisterFormState extends State<RegisterForm> {
   }
 
   Future<void> _handleRegister() async {
+    final fullName = _fullNameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final country = _countryController.text.trim();
     final birthdate = _birthdateController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (fullName.isEmpty || email.isEmpty || password.isEmpty) {
       ErrorSnackBar.show(context, 'Please complete all fields'.i18n);
       return;
     }
@@ -134,6 +139,7 @@ class _RegisterFormState extends State<RegisterForm> {
     final result = await _authRepository!.register(
       email, 
       password,
+      fullName: fullName,
       country: country.isNotEmpty ? country : null,
       birthdate: birthdate.isNotEmpty ? birthdate : null,
       accountType: widget.accountType,
@@ -154,9 +160,34 @@ class _RegisterFormState extends State<RegisterForm> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Full Name Field
+        TextFormField(
+          controller: _fullNameController,
+          style: const TextStyle(color: AppColors.text),
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
+          decoration: InputDecoration(
+            prefixIcon: Icon(Icons.person_outline, color: AppColors.secondary),
+            labelText: "Full Name".i18n,
+            labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.text.withOpacity(0.2)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.secondary, width: 2),
+            ),
+            filled: true,
+            fillColor: AppColors.background.withOpacity(0.5),
+          ),
+        ),
+        const SizedBox(height: 20),
+
         // Email Field
         TextFormField(
           controller: _emailController,
+          focusNode: _emailFocusNode,
           style: const TextStyle(color: AppColors.text),
           textInputAction: TextInputAction.next,
           keyboardType: TextInputType.emailAddress,

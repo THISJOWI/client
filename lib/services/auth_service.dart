@@ -53,6 +53,7 @@ class AuthService {
   Future<Map<String, dynamic>> register(
     String email, 
     String password, {
+    String? fullName,
     String? country,
     String? accountType,
     String? hostingMode,
@@ -65,6 +66,7 @@ class AuthService {
         'password': password,
       };
       
+      if (fullName != null) bodyData['fullName'] = fullName;
       if (country != null) bodyData['country'] = country;
       if (accountType != null) bodyData['accountType'] = accountType;
       if (hostingMode != null) bodyData['hostingMode'] = hostingMode;
