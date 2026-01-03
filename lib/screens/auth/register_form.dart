@@ -6,6 +6,7 @@ import 'package:thisjowi/services/connectivity_service.dart';
 import 'package:thisjowi/data/local/secure_storage_service.dart';
 import 'package:thisjowi/components/error_snack_bar.dart';
 import 'package:thisjowi/i18n/translations.dart';
+import 'package:thisjowi/components/country_map_picker.dart';
 
 class RegisterForm extends StatefulWidget {
   final Function(Map<String, dynamic> result) onSuccess;
@@ -35,6 +36,7 @@ class _RegisterFormState extends State<RegisterForm> {
   AuthRepository? _authRepository;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _acceptedTerms = false;
 
   @override
   void initState() {
@@ -78,6 +80,28 @@ class _RegisterFormState extends State<RegisterForm> {
     return null;
   }
 
+  void _showTermsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF202020),
+        title: Text("Terms and Conditions".i18n, style: const TextStyle(color: AppColors.text)),
+        content: SingleChildScrollView(
+          child: Text(
+            "Here are the terms and conditions of use for the app... \n\n1. Use of the app...\n2. Privacy Policy...\n3. User Responsibilities...".i18n,
+            style: TextStyle(color: AppColors.text.withOpacity(0.8)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Close".i18n, style: const TextStyle(color: AppColors.secondary)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleRegister() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -86,6 +110,11 @@ class _RegisterFormState extends State<RegisterForm> {
 
     if (email.isEmpty || password.isEmpty) {
       ErrorSnackBar.show(context, 'Please complete all fields'.i18n);
+      return;
+    }
+
+    if (!_acceptedTerms) {
+      ErrorSnackBar.show(context, 'You must accept the terms and conditions'.i18n);
       return;
     }
 
@@ -192,6 +221,16 @@ class _RegisterFormState extends State<RegisterForm> {
           controller: _countryController,
           focusNode: _countryFocusNode,
           style: const TextStyle(color: AppColors.text),
+          readOnly: true,
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CountryMapPicker()),
+            );
+            if (result != null && result is String) {
+              _countryController.text = result;
+            }
+          },
           textInputAction: TextInputAction.next,
           decoration: InputDecoration(
             prefixIcon: Icon(Icons.public, color: AppColors.secondary),
@@ -211,51 +250,43 @@ class _RegisterFormState extends State<RegisterForm> {
         ),
         const SizedBox(height: 20),
 
-        // Birthdate Field (Optional)
-        TextFormField(
-          controller: _birthdateController,
-          style: const TextStyle(color: AppColors.text),
-          readOnly: true,
-          onTap: () async {
-            final DateTime? picked = await showDatePicker(
-              context: context,
-              initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
-              firstDate: DateTime(1900),
-              lastDate: DateTime.now(),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.dark(
-                      primary: AppColors.secondary,
-                      onPrimary: Colors.black,
-                      surface: Color(0xFF202020),
-                      onSurface: AppColors.text,
-                    ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF202020)),
-                  ),
-                  child: child!,
-                );
+
+        // Terms and Conditions Checkbox
+        Row(
+          children: [
+            Checkbox(
+              value: _acceptedTerms,
+              activeColor: AppColors.secondary,
+              checkColor: AppColors.background,
+              side: BorderSide(color: AppColors.text.withOpacity(0.5)),
+              onChanged: (value) {
+                setState(() {
+                  _acceptedTerms = value ?? false;
+                });
               },
-            );
-            if (picked != null) {
-              final formatted = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-              _birthdateController.text = formatted;
-            }
-          },
-          decoration: InputDecoration(
-            prefixIcon: Icon(Icons.calendar_today, color: AppColors.secondary),
-            labelText: "Birthdate (Optional)".i18n,
-            labelStyle: TextStyle(color: AppColors.text.withOpacity(0.6)),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.text.withOpacity(0.2)),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.secondary, width: 2),
+            Expanded(
+              child: GestureDetector(
+                onTap: _showTermsDialog,
+                child: RichText(
+                  text: TextSpan(
+                    text: "I accept the ".i18n,
+                    style: TextStyle(color: AppColors.text.withOpacity(0.8)),
+                    children: [
+                      TextSpan(
+                        text: "Terms and Conditions".i18n,
+                        style: const TextStyle(
+                          color: AppColors.secondary,
+                          decoration: TextDecoration.underline,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            filled: true,
-            fillColor: AppColors.background.withOpacity(0.5),
-          ),
+          ],
         ),
         const SizedBox(height: 32),
 
