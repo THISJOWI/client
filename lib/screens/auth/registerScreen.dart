@@ -5,6 +5,7 @@ import 'package:thisjowi/i18n/translations.dart';
 import 'package:thisjowi/screens/auth/register_form.dart';
 
 import 'package:thisjowi/components/bottomNavigation.dart';
+import 'package:thisjowi/screens/auth/email_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String? accountType;
@@ -28,6 +29,9 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   
+
+// ...
+
   void _handleSuccess(Map<String, dynamic> result) {
     if (widget.onSuccess != null) {
       widget.onSuccess!(result);
@@ -39,15 +43,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (mounted) {
       ErrorSnackBar.showSuccess(
         context, 
-        'Account created! Syncing in background...'.i18n
+        'Account created!'.i18n
       );
       
-      // Navigate to home or main screen instead of login
-      // User can start using the app immediately
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MyBottomNavigation()),
-      );
+      // Check if we have a token (auto-login successful)
+      if (result.containsKey('token')) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MyBottomNavigation()),
+        );
+      } else {
+        final email = result['email'] as String? ?? '';
+
+        // Navigate to email verification screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(email: email),
+          ),
+        );
+      }
     }
   }
 

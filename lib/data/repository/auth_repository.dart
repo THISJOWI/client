@@ -99,6 +99,14 @@ class AuthRepository {
     }
   }
 
+  /// Initiate registration by sending OTP
+  Future<Map<String, dynamic>> initiateRegister(String email) async {
+    if (!_connectivityService.isOnline) {
+      return {'success': false, 'message': 'No internet connection'.i18n};
+    }
+    return _authService.initiateRegister(email);
+  }
+
   /// Register with offline-first support.
   Future<Map<String, dynamic>> register(
     String email, 
@@ -108,6 +116,7 @@ class AuthRepository {
     String? accountType,
     String? hostingMode,
     String? birthdate,
+    required String otp,
   }) async {
     // Ensure no stale session exists from previous user
     await _authService.logout();
@@ -121,42 +130,47 @@ class AuthRepository {
       };
     }
 
-    // Step 2: Check if registration is already queued
-    final isQueued = await _db.syncQueueDao.isQueued('registration', email);
-    if (isQueued) {
+    // Registration requires internet for OTP verification
+    if (!_connectivityService.isOnline) {
       return {
         'success': false,
-        'message': 'This user is already in the sync queue. Please wait for it to complete.',
+        'message': 'Registration requires internet connection to verify email.'.i18n,
       };
     }
 
-    // Step 3: ALWAYS save to local database first (FAST)
-    final token = 'local_temp_token_${DateTime.now().millisecondsSinceEpoch}';
-    await _cacheUserCredentials(email, password, token);
-    
-    // Save token for immediate use
-    await _secureStorageService.saveValue('cached_token', token);
-    await _secureStorageService.saveValue('cached_email', email);
-    // Also set session for AuthService (even if temp token, it prevents using old user's token)
-    await _authService.setSession(token, email);
+    try {
+      // Step 2: Call backend directly to verify OTP and create user
+      final result = await _authService.register(
+        email, 
+        password,
+        fullName: fullName,
+        country: country,
+        accountType: accountType,
+        hostingMode: hostingMode,
+        birthdate: birthdate,
+        otp: otp,
+      );
 
-    // Step 4: Sync with backend in BACKGROUND (non-blocking)
-    _syncRegistrationInBackground(
-      email, 
-      password,
-      fullName: fullName,
-      country: country,
-      accountType: accountType,
-      hostingMode: hostingMode,
-      birthdate: birthdate,
-    );
-
-    // Return success immediately - user can start using the app
-    return {
-      'success': true,
-      'message': 'Account created successfully',
-      'data': {'token': token},
-    };
+      if (result['success'] == true) {
+        // Step 3: Save to local database
+        final token = result['data']?['token'] ?? 'temp_token';
+        await _cacheUserCredentials(email, password, token);
+        
+        // Save token for immediate use
+        await _secureStorageService.saveValue('cached_token', token);
+        await _secureStorageService.saveValue('cached_email', email);
+        await _authService.setSession(token, email);
+        
+        return result;
+      } else {
+        return result;
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Registration failed: $e',
+      };
+    }
   }
 
   /// Update user profile.
@@ -193,82 +207,7 @@ class AuthRepository {
     }
   }
 
-  /// Sync registration with backend in background (non-blocking)
-  void _syncRegistrationInBackground(
-    String email, 
-    String password, {
-    String? fullName,
-    String? country,
-    String? accountType,
-    String? hostingMode,
-    String? birthdate,
-  }) {
-    // Fire and forget - don't await
-    Future(() async {
-      final isOnline = _connectivityService.isOnline;
-      
-      if (!isOnline) {
-        // Queue for later sync when connection is restored
-        await _queueRegistration(
-          email, 
-          password,
-          fullName: fullName,
-          country: country,
-          accountType: accountType,
-          hostingMode: hostingMode,
-          birthdate: birthdate,
-        );
-        print('📝 Registration queued for later sync: $email');
-        return;
-      }
 
-      try {
-        final result = await _authService.register(
-          email, 
-          password,
-          fullName: fullName,
-          country: country,
-          accountType: accountType,
-          hostingMode: hostingMode,
-          birthdate: birthdate,
-        );
-        
-        if (result['success'] == true) {
-          // Backend registration successful - update with real token
-          if (result['data']?['token'] != null) {
-            await _cacheUserCredentials(email, password, result['data']['token']);
-            await _secureStorageService.saveValue('cached_token', result['data']['token']);
-          }
-          // Remove from sync queue if it was queued
-          await _db.syncQueueDao.removeItem('registration', email);
-          print('✅ Registration synced successfully: $email');
-        } else {
-          // Backend registration failed - queue for retry
-          await _queueRegistration(
-            email, 
-            password,
-            fullName: fullName,
-            country: country,
-            accountType: accountType,
-            hostingMode: hostingMode,
-            birthdate: birthdate,
-          );
-          print('⚠️ Registration queued for retry: $email - ${result['message']}');
-        }
-      } catch (e) {
-        // Network error - queue for retry
-        await _queueRegistration(
-          email, 
-          password,
-          country: country,
-          accountType: accountType,
-          hostingMode: hostingMode,
-          birthdate: birthdate,
-        );
-        print('❌ Registration sync failed, queued for retry: $email - $e');
-      }
-    });
-  }
 
   /// Logout and optionally clear cached credentials.
   Future<void> logout({bool clearCache = false}) async {
@@ -525,33 +464,7 @@ class AuthRepository {
     await _db.delete(_db.users).go();
   }
 
-  /// Queue registration for later sync.
-  Future<void> _queueRegistration(
-    String email, 
-    String password, {
-    String? fullName,
-    String? country,
-    String? accountType,
-    String? hostingMode,
-    String? birthdate,
-  }) async {
-    final data = {
-      'email': email,
-      'password': password,
-    };
-    if (fullName != null) data['fullName'] = fullName;
-    if (country != null) data['country'] = country;
-    if (accountType != null) data['accountType'] = accountType;
-    if (hostingMode != null) data['hostingMode'] = hostingMode;
-    if (birthdate != null) data['birthdate'] = birthdate;
 
-    await _db.syncQueueDao.queueItem(
-      'registration',
-      email,
-      'create',
-      jsonEncode(data),
-    );
-  }
 
   /// Sync login with backend (background, non-blocking)
   Future<void> _syncLoginWithBackend(String email, String password, String? cachedToken) async {

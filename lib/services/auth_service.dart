@@ -50,6 +50,26 @@ class AuthService {
     }
   }
 
+  Future<Map<String, dynamic>> initiateRegister(String email) async {
+    try {
+      final uri = Uri.parse('$baseUrl/initiate-register');
+      final res = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      ).timeout(const Duration(seconds: 30));
+
+      final body = _tryDecode(res.body);
+
+      if (res.statusCode == 200) {
+        return {'success': true, 'message': body?['message']};
+      }
+      return {'success': false, 'message': body?['message'] ?? 'Error: ${res.statusCode}'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Future<Map<String, dynamic>> register(
     String email, 
     String password, {
@@ -58,12 +78,14 @@ class AuthService {
     String? accountType,
     String? hostingMode,
     String? birthdate,
+    required String otp,
   }) async {
     try {
       final uri = Uri.parse('$baseUrl/register');
       final bodyData = {
         'email': email, 
         'password': password,
+        'otp': otp,
       };
       
       if (fullName != null) bodyData['fullName'] = fullName;

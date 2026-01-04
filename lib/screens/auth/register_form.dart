@@ -110,8 +110,6 @@ class _RegisterFormState extends State<RegisterForm> {
     final fullName = _fullNameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    final country = _countryController.text.trim();
-    final birthdate = _birthdateController.text.trim();
 
     if (fullName.isEmpty || email.isEmpty || password.isEmpty) {
       ErrorSnackBar.show(context, 'Please complete all fields'.i18n);
@@ -135,7 +133,89 @@ class _RegisterFormState extends State<RegisterForm> {
 
     setState(() => _isLoading = true);
     
-    // Registration is now instant (offline-first with background sync)
+    // Step 1: Initiate registration (Send OTP)
+    final result = await _authRepository!.initiateRegister(email);
+    
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result['success'] == true) {
+      _showOtpDialog();
+    } else {
+      ErrorSnackBar.show(context, result['message'] ?? 'Failed to send verification code'.i18n);
+    }
+  }
+
+  void _showOtpDialog() {
+    final otpController = TextEditingController();
+    bool isVerifying = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF202020),
+          title: Text("Verify Email".i18n, style: const TextStyle(color: AppColors.text)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "We sent a code to ${_emailController.text}".i18n,
+                style: TextStyle(color: AppColors.text.withOpacity(0.7)),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: otpController,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.text, fontSize: 24, letterSpacing: 8),
+                maxLength: 6,
+                decoration: InputDecoration(
+                  counterText: "",
+                  hintText: "000000",
+                  hintStyle: TextStyle(color: AppColors.text.withOpacity(0.3)),
+                  filled: true,
+                  fillColor: AppColors.background,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isVerifying ? null : () => Navigator.pop(dialogContext),
+              child: Text("Cancel".i18n, style: TextStyle(color: AppColors.text.withOpacity(0.5))),
+            ),
+            ElevatedButton(
+              onPressed: isVerifying 
+                  ? null 
+                  : () async {
+                      if (otpController.text.length < 6) return;
+                      setDialogState(() => isVerifying = true);
+                      await _completeRegistration(otpController.text, dialogContext);
+                      if (mounted) {
+                          setDialogState(() => isVerifying = false);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+              child: isVerifying 
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text("Verify".i18n),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _completeRegistration(String otp, BuildContext dialogContext) async {
+    final fullName = _fullNameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final country = _countryController.text.trim();
+    final birthdate = _birthdateController.text.trim();
+
     final result = await _authRepository!.register(
       email, 
       password,
@@ -144,14 +224,27 @@ class _RegisterFormState extends State<RegisterForm> {
       birthdate: birthdate.isNotEmpty ? birthdate : null,
       accountType: widget.accountType,
       hostingMode: widget.hostingMode,
+      otp: otp,
     );
     
     if (!mounted) return;
-    setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      widget.onSuccess(result);
+      Navigator.pop(dialogContext); // Close dialog
+      
+      // Auto login after successful registration
+      final loginResult = await _authRepository!.login(email, password);
+      
+      if (!mounted) return;
+
+      if (loginResult['success'] == true) {
+        widget.onSuccess(loginResult['data']);
+      } else {
+        // Fallback to register result if login fails
+        widget.onSuccess(result);
+      }
     } else {
+      // Show error in snackbar (using main context)
       ErrorSnackBar.show(context, result['message'] ?? 'Register failed'.i18n);
     }
   }
