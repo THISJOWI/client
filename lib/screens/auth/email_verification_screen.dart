@@ -38,7 +38,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/auth/verify-email'),
+        Uri.parse('${ApiConfig.authUrl}/verify-email'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': widget.email, 'code': code}),
       );
@@ -83,7 +83,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/auth/resend-verification'),
+        Uri.parse('${ApiConfig.authUrl}/resend-verification'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': widget.email}),
       );

@@ -349,6 +349,26 @@ class AuthService {
     }
   }
 
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final uri = Uri.parse('$baseUrl/forgot-password');
+    try {
+      final res = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      ).timeout(const Duration(seconds: 30));
+
+      final body = _tryDecode(res.body);
+      if (res.statusCode == 200) {
+        return {'success': true, 'message': body?['message'] ?? 'OTP sent'};
+      } else {
+        return {'success': false, 'message': body?['message'] ?? 'Failed to send OTP'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Future<Map<String, dynamic>> deleteAccount() async {
     try {
       final token = await getToken();

@@ -10,6 +10,7 @@ import 'package:thisjowi/components/error_snack_bar.dart';
 import 'package:thisjowi/components/social_login_button.dart';
 import 'package:thisjowi/i18n/translations.dart';
 import 'package:thisjowi/i18n/translation_service.dart';
+import 'package:thisjowi/screens/auth/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -317,7 +318,28 @@ class _LoginScreenState extends State<LoginScreen> {
                               fillColor: AppColors.background.withOpacity(0.5),
                             ),
                           ),
-                          const SizedBox(height: 32),
+                          
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const ForgotPasswordScreen(),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                'Forgot Password?'.tr(context),
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
 
                           // Login Button
                           SizedBox(
